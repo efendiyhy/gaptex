@@ -1,99 +1,106 @@
-# Gaptex Online Installer for Windows / Spotify Desktop.
-# Standalone: designed for `irm https://raw.githubusercontent.com/efendiyhy/gaptex/main/install-online.ps1 | iex`.
-# Reads gaptex.js from the same public GitHub repository; never downloads arbitrary executable payloads.
-# Installing the third-party Spicetify CLI (if needed) always requires the user's confirmation.
+# Gaptex one-command installer for Windows.
+# Source: https://github.com/efendiyhy/gaptex
+# Dependency attribution: docs/THIRD_PARTY_NOTICES.md in this repository.
+# Run: irm https://raw.githubusercontent.com/efendiyhy/gaptex/main/install-online.ps1 | iex
 
 $ErrorActionPreference = 'Stop'
-
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
-    throw 'Installer online Gaptex ini khusus Windows. Untuk Linux/macOS, gunakan petunjuk instalasi manual.'
+    throw 'Gaptex Installer ini hanya mendukung Windows.'
 }
 
 $repo = 'https://raw.githubusercontent.com/efendiyhy/gaptex/main'
 $extensionUrl = "$repo/gaptex.js"
-$extensionsDir = Join-Path $env:APPDATA 'spicetify\Extensions'
-$destination = Join-Path $extensionsDir 'gaptex.js'
+$extensionDir = Join-Path $env:APPDATA 'spicetify\Extensions'
+$destination = Join-Path $extensionDir 'gaptex.js'
 $tempFile = Join-Path ([IO.Path]::GetTempPath()) ('gaptex-' + [guid]::NewGuid().ToString('N') + '.js')
+$logDir = Join-Path $env:LOCALAPPDATA 'Gaptex\logs'
+$log = Join-Path $logDir 'install.log'
+New-Item -Path $logDir -ItemType Directory -Force | Out-Null
 
-function Find-GaptexIntegration {
-    $command = Get-Command spicetify -ErrorAction SilentlyContinue
-    if ($command -and $command.Source) { return $command.Source }
-
-    $paths = @(
+function Find-GaptexRuntime {
+    $exe = Get-Command spicetify -ErrorAction SilentlyContinue
+    if ($exe -and $exe.Source) { return $exe.Source }
+    foreach ($candidate in @(
         (Join-Path $env:USERPROFILE '.spicetify\spicetify.exe'),
         (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\spicetify.exe')
-    )
-    foreach ($path in $paths) {
-        if (Test-Path -LiteralPath $path -PathType Leaf) { return $path }
+    )) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
     }
     return $null
 }
 
+function Invoke-GaptexTool {
+    param([string]$Executable, [string[]]$Arguments)
+    & $Executable @Arguments *>> $log
+    return ($LASTEXITCODE -eq 0)
+}
+
 Write-Host ''
-Write-Host '====================================='
-Write-Host '        Gaptex Online Installer'
-Write-Host '====================================='
-Write-Host 'Sumber: https://github.com/efendiyhy/gaptex'
-Write-Host 'Mengunduh modul Gaptex...'
+Write-Host '================================='
+Write-Host '         Gaptex Installer'
+Write-Host '================================='
+Write-Host '[1/4] Mengunduh modul Gaptex...'
 
 try {
-    # Windows PowerShell 5.1 on older installations may not default to TLS 1.2.
     if ($PSVersionTable.PSVersion.Major -le 5) {
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     }
-    Invoke-WebRequest -Uri $extensionUrl -OutFile $tempFile -UseBasicParsing -ErrorAction Stop
-    $file = Get-Item -LiteralPath $tempFile
-    if ($file.Length -lt 1000 -or (Get-Content -LiteralPath $tempFile -TotalCount 1) -ne '// NAME: Gaptex') {
-        throw 'File ekstensi dari GitHub tidak valid. Instalasi dibatalkan.'
+    Invoke-WebRequest -Uri $extensionUrl -OutFile $tempFile -UseBasicParsing
+    if ((Get-Item -LiteralPath $tempFile).Length -lt 1000 -or
+        (Get-Content -LiteralPath $tempFile -TotalCount 1) -ne '// NAME: Gaptex') {
+        throw 'Berkas ekstensi tidak valid. Instalasi dibatalkan.'
     }
 
-    $integration = Find-GaptexIntegration
-    if (-not $integration) {
-        Write-Host ''
-        Write-Host 'Gaptex memerlukan komponen integrasi desktop pihak ketiga (Spicetify CLI).'
-        Write-Host 'Jika Anda setuju, Windows Package Manager akan memasangnya dari sumber yang terdaftar.'
-        $reply = Read-Host 'Pasang komponen pendukung sekarang? (Y/N)'
+    Write-Host '[2/4] Memeriksa komponen integrasi...'
+    $runtime = Find-GaptexRuntime
+    if (-not $runtime) {
+        Write-Host 'Gaptex memerlukan komponen integrasi desktop pihak ketiga yang bersifat open-source.'
+        Write-Host 'Komponen ini dipasang melalui Windows Package Manager dan memiliki lisensi tersendiri.'
+        Write-Host 'Rincian komponen dan lisensi: https://github.com/efendiyhy/gaptex/blob/main/docs/THIRD_PARTY_NOTICES.md'
+        $reply = Read-Host 'Izinkan pemasangan komponen pendukung? (Y/N)'
         if ($reply -notmatch '^(?i:y|yes|ya)$') {
-            throw 'Instalasi dibatalkan. Komponen integrasi diperlukan untuk menjalankan Gaptex.'
+            throw 'Instalasi dibatalkan oleh pengguna.'
         }
-        if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-            throw 'winget tidak ditemukan. Pasang Windows App Installer, atau pasang Spicetify CLI lebih dulu.'
+        $winget = Get-Command winget -ErrorAction SilentlyContinue
+        if (-not $winget) { throw 'Windows Package Manager belum tersedia. Perbarui App Installer melalui Microsoft Store.' }
+        Write-Host 'Memasang komponen pendukung...'
+        if (-not (Invoke-GaptexTool -Executable $winget.Source -Arguments @(
+            'install', '--id', 'Spicetify.Spicetify', '--exact', '--silent',
+            '--accept-package-agreements', '--accept-source-agreements'
+        ))) {
+            throw "Komponen pendukung gagal dipasang. Lihat log: $log"
         }
-        & winget install --id Spicetify.Spicetify --exact --accept-package-agreements --accept-source-agreements
-        if ($LASTEXITCODE -ne 0) {
-            throw 'Pemasangan komponen integrasi gagal. Periksa pesan winget, lalu coba kembali.'
-        }
-
-        # Update environment inside the current PowerShell process after winget changes PATH.
         $env:Path = @(
             [Environment]::GetEnvironmentVariable('Path', 'Machine'),
             [Environment]::GetEnvironmentVariable('Path', 'User'),
             $env:Path
         ) -join ';'
-        $integration = Find-GaptexIntegration
-        if (-not $integration) {
-            throw 'Komponen pendukung belum ditemukan pada sesi ini. Buka PowerShell baru lalu jalankan perintah Gaptex lagi.'
+        $runtime = Find-GaptexRuntime
+        if (-not $runtime) {
+            throw 'Komponen pendukung telah dipasang tetapi belum terdeteksi. Buka PowerShell baru dan jalankan installer lagi.'
         }
     }
 
-    New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
+    Write-Host '[3/4] Menyiapkan Gaptex...'
+    New-Item -Path $extensionDir -ItemType Directory -Force | Out-Null
     Copy-Item -LiteralPath $tempFile -Destination $destination -Force
-    Write-Host 'Mendaftarkan Gaptex di Spotify Desktop...'
 
-    & $integration config extensions gaptex.js
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Pendaftaran Gaptex gagal. Buka Spotify dan login setidaknya sekali, lalu ulangi instalasi.'
+    if (-not (Invoke-GaptexTool -Executable $runtime -Arguments @('config', 'extensions', 'gaptex.js'))) {
+        throw "Gaptex gagal didaftarkan. Pastikan Spotify sudah pernah dibuka dan login. Lihat log: $log"
     }
 
-    & $integration backup apply
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Penerapan Gaptex gagal. Tutup Spotify, lalu jalankan perintah instalasi lagi.'
+    Write-Host '[4/4] Mengaktifkan Gaptex...'
+    if (-not (Invoke-GaptexTool -Executable $runtime -Arguments @('apply'))) {
+        # First-time setup may need an initial backup; never clear an existing one.
+        if (-not (Invoke-GaptexTool -Executable $runtime -Arguments @('backup', 'apply'))) {
+            throw "Aktivasi belum berhasil. Tutup Spotify sepenuhnya lalu jalankan installer lagi. Log: $log"
+        }
     }
 
     Write-Host ''
     Write-Host 'Gaptex berhasil dipasang!' -ForegroundColor Green
-    Write-Host 'Buka Spotify Desktop > menu profil > Gaptex.'
-    Write-Host 'Catatan: fitur masih prototipe. Efektivitas pemblokiran iklan tidak dijamin.'
+    Write-Host 'Buka kembali Spotify Desktop, lalu klik menu profil untuk menemukan Gaptex.'
+    Write-Host 'Catatan: keberhasilan pemasangan bukan jaminan setiap fitur cocok dengan versi Spotify Anda.'
 }
 finally {
     if (Test-Path -LiteralPath $tempFile) {

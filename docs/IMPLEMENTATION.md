@@ -1,45 +1,30 @@
-# Catatan teknis Gaptex 0.1.0
+# Gaptex 0.1.2 — catatan teknis
 
-## Scope
+Gaptex adalah ekstensi independen berbentuk `gaptex.js` untuk Spotify Desktop. Ia **masih memakai Spicetify CLI dan API ekstensi JS secara internal**. Kredensial, kode biner, dan lisensi perangkat lunak pihak ketiga tidak termasuk dalam paket source Gaptex. Lihat [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-- Platform: Spotify Desktop (Windows/Linux/macOS) dan Spicetify yang masih mendukung API ekstensi JS biasa.
-- Hanya dua fitur: penyaringan iklan UI/manager dan menjaga status tombol shuffle.
-- Tidak ada patch berkas Spotify, pemalsuan status langganan Premium, penangkapan token, proxy HTTPS, injeksi web request global, atau perubahan playback stream.
+## Mekanisme pemasangan
 
-## AdBlock
+- `install-online.ps1` mengunduh `gaptex.js` dari repository resmi (branch `main`).
+- Installer mencari komponen runtime lokal; jika belum ditemukan, ia meminta persetujuan untuk menginstal paket via winget.
+- Installer menambahkan `gaptex.js` ke daftar ekstensi dan mencoba menerapkannya. Output detail disimpan ke `%LOCALAPPDATA%\Gaptex\logs\install.log` untuk debugging.
+- Aktivasi mencoba `apply` terlebih dahulu, lalu `backup apply` untuk pemasangan awal. Tidak menghapus backup lama secara otomatis.
+- `install.ps1` melakukan prosedur serupa dari ZIP lokal.
+- `uninstall.ps1` menghapus ekstensi Gaptex tetapi tidak menghapus runtime bersama.
 
-1. Tambahkan CSS selektor iklan yang relatif semantik (mis. `[data-testid]`).
-2. Jika `Spicetify.Platform.AdManagers` tersedia, panggil fungsi `disable()` pada manager yang diketahui dan `disableLeaderboard()` bila ada.
-3. Coba mengubah flag `ads` menjadi `0` melalui ProductState API internal; **tidak** menyamar sebagai akun Premium. Jika tersedia, bersihkan slot iklan lewat konektor ad-slot.
-4. Ulangi secara berkala karena Spotify dapat mengaktifkan kembali manager setelah state berubah.
-5. Jika API tidak tersedia, hanya lapisan UI yang akan bekerja. Tidak ada keberhasilan audio blocking yang dapat diasumsikan.
+## Kemampuan dan batasan
 
-## Anti-Reshuffle
+- AdBlock mencoba menggunakan UI selectors serta API ad manager internal yang tersedia. Pemblokiran iklan audio tidak dapat dijamin.
+- Anti-Reshuffle menjaga *status shuffle*, bukan menyimpan antrean lagu.
+- Tidak melakukan intersepsi HTTPS, pemalsuan status Premium, atau pengunduhan kode ekstensi pihak ketiga.
+- Ekstensi dan installer belum diuji langsung pada semua versi Windows/Spotify. Uji manual wajib dilakukan sebelum klaim kompatibilitas produksi.
 
-- Default: `antiReshuffle=true`, `preferredShuffle=false`.
-- Event `songchange` + pemeriksaan setiap 3 detik membandingkan `Player.getShuffle()` dengan preferensi.
-- Jika berbeda, panggil `Player.setShuffle(preferredShuffle)`, dengan jeda antarpanggilan untuk menghindari spam.
-- **Tidak** mengganti `Queue.nextTracks` atau otomatis mengacak antrean. Queue semacam itu dikelola oleh Spotify dan pengubahan agresif rentan mengacaukan perangkat lain.
+## Uji manual yang perlu dilakukan
 
-## Known limitations
+1. Instal di Windows yang belum memiliki runtime integrasi dan pastikan prompt persetujuan muncul.
+2. Ulangi instalasi pada Windows yang sudah memiliki runtime dan backup yang valid.
+3. Pastikan tiga menu Gaptex ada pada menu profil Spotify.
+4. Aktif/nonaktif AdBlock, restart Spotify, dan verifikasi dampak pada antarmuka dan audio secara terpisah.
+5. Nyalakan Anti-Reshuffle, pilih OFF/ON, ubah status shuffle, dan cek apakah mode dikembalikan.
+6. Jalankan uninstaller dan cek tidak ada menu Gaptex tertinggal.
 
-- Respons `setShuffle()` tidak selalu bermakna Spotify mengizinkan kontrol bebas pada semua jenis akun.
-- AdManagers, class CSS, dan menu dapat berubah antarversi.
-- Pengaturan disimpan dalam Spicetify LocalStorage, bukan sistem cloud.
-- Spicetify v3 package system tidak identik dengan mekanisme manual ekstensi JS; paket ini ditargetkan untuk instalasi manual yang didokumentasikan Spicetify.
-
-## Real-device test matrix (belum dijalankan)
-
-1. Jalankan di Spotify Desktop Windows dengan Spicetify yang kompatibel.
-2. Cek menu profil berisi ketiga entri Gaptex dan status tersimpan setelah restart.
-3. Pada akun uji, nyalakan lagu dan pastikan shuffle mode dikembalikan bila disetel berbeda.
-4. Validasi iklan UI serta iklan audio secara terpisah (jangan menganggap keduanya setara).
-5. Matikan Gaptex dan pastikan tidak ada efek lain; lakukan restart untuk manajer iklan.
-6. Uji kompatibilitas ulang seusai update Spotify/Spicetify.
-
-## Refs
-
-- https://spicetify.app/docs/customization/extensions/
-- https://spicetify.app/docs/development/api-wrapper/methods/player/
-- https://spicetify.app/docs/development/api-wrapper/methods/platform/
-- https://github.com/rxri/spicetify-extensions
+Refs: https://spicetify.app/docs/customization/extensions/ ; https://github.com/spicetify/cli
