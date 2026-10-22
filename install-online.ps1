@@ -1,4 +1,5 @@
 # Gaptex one-command installer for Windows.
+# Version: 0.1.4 (activation diagnostic / backup repair hotfix)
 # Source: https://github.com/efendiyhy/gaptex
 # Dependency attribution: docs/THIRD_PARTY_NOTICES.md in this repository.
 # Run: irm https://raw.githubusercontent.com/efendiyhy/gaptex/main/install-online.ps1 | iex
@@ -38,6 +39,7 @@ function Invoke-GaptexTool {
     # On Windows PowerShell 5.1, *>> with ErrorActionPreference=Stop can
     # terminate the installer with NativeCommandError before checking exit code.
     # Capture native process streams separately and check the actual exit code.
+    $script:GaptexLastOutput = ''
     $unique = [guid]::NewGuid().ToString('N')
     $stdout = Join-Path $logDir ("gaptex-out-$unique.tmp")
     $stderr = Join-Path $logDir ("gaptex-err-$unique.tmp")
@@ -52,14 +54,21 @@ function Invoke-GaptexTool {
             if (Test-Path -LiteralPath $path -PathType Leaf) {
                 $output = [IO.File]::ReadAllText($path)
                 if ($output.Length -gt 0) {
+                    $script:GaptexLastOutput += $output + [Environment]::NewLine
                     [IO.File]::AppendAllText($log, $output + [Environment]::NewLine)
                 }
             }
         }
         Add-Content -LiteralPath $log -Value ("Exit code: {0}" -f $process.ExitCode)
-        return ($process.ExitCode -eq 0)
+        # A known version-mismatch error can appear with exit code 0 in some builds.
+        $versionMismatch = $script:GaptexLastOutput -match '(?i)Spotify version mismatch|Spotify version is not supported'
+        if ($versionMismatch) {
+            Add-Content -LiteralPath $log -Value 'Gaptex: detected Spotify compatibility error in process output.'
+        }
+        return (($process.ExitCode -eq 0) -and -not $versionMismatch)
     }
     catch {
+        $script:GaptexLastOutput = $_.Exception.Message
         Add-Content -LiteralPath $log -Value ("Process launch failed: {0}" -f $_.Exception.Message)
         Write-Warning "Proses integrasi desktop gagal. Periksa log: $log"
         return $false
@@ -108,6 +117,7 @@ function Stop-GaptexSpotify {
 Write-Host ''
 Write-Host '================================='
 Write-Host '         Gaptex Installer'
+Write-Host '            v0.1.4'
 Write-Host '================================='
 Write-Host '[1/4] Mengunduh modul Gaptex...'
 
@@ -161,11 +171,40 @@ try {
 
     Write-Host '[4/4] Mengaktifkan Gaptex...'
     Stop-GaptexSpotify
-    if (-not (Invoke-GaptexTool -Executable $runtime -Arguments @('apply'))) {
-        # First-time setup may need an initial backup; never clear an existing one.
-        if (-not (Invoke-GaptexTool -Executable $runtime -Arguments @('backup', 'apply'))) {
-            throw "Aktivasi belum berhasil. Tutup Spotify sepenuhnya lalu jalankan installer lagi. Log: $log"
+    $activated = Invoke-GaptexTool -Executable $runtime -Arguments @('apply')
+    if (-not $activated) {
+        if ($script:GaptexLastOutput -match '(?i)Spotify version mismatch|Spotify version is not supported') {
+            Write-Warning 'Versi Spotify belum kompatibel dengan komponen integrasi terpasang.'
         }
+        else {
+            # First-time installation may need an initial backup.
+            Write-Host 'Aktivasi awal gagal; memeriksa kondisi backup...' -ForegroundColor Yellow
+            $activated = Invoke-GaptexTool -Executable $runtime -Arguments @('backup', 'apply')
+            $backupOutput = $script:GaptexLastOutput
+
+            # Only offer repair for the documented stale-backup case.
+            # Do not automatically overwrite existing Spotify modifications.
+            if (-not $activated -and
+                $backupOutput -match '(?i)Please restore first then backup|After clearing backup|Before clearing backup') {
+                Write-Warning 'Backup Spotify lama ditemukan dan tidak dapat dibuat ulang langsung.'
+                Write-Host 'Perbaikan akan memulihkan berkas Spotify ke kondisi asal lalu menerapkan konfigurasi ekstensi yang terdaftar.'
+                Write-Host 'Perubahan pada file Spotify dari alat lain mungkin akan terganti.'
+                $answer = Read-Host 'Izinkan pemulihan backup otomatis? (Y/N)'
+                if ($answer -match '^(?i:y|yes|ya)$') {
+                    Stop-GaptexSpotify
+                    $activated = Invoke-GaptexTool -Executable $runtime -Arguments @('restore', 'backup', 'apply')
+                }
+            }
+        }
+    }
+
+    if (-not $activated) {
+        Write-Host ''
+        Write-Host 'Ringkasan log aktivasi terakhir:' -ForegroundColor Yellow
+        if (Test-Path -LiteralPath $log -PathType Leaf) {
+            Get-Content -LiteralPath $log -Tail 35 | ForEach-Object { Write-Host $_ }
+        }
+        throw "Gaptex belum berhasil diaktifkan. Lihat penyebab sebenarnya pada log: $log"
     }
 
     Write-Host ''
