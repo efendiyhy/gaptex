@@ -1,110 +1,104 @@
-# Gaptex — Spicetify Desktop Extension
+# Gaptex
 
-**Gaptex v0.1.0** adalah ekstensi **satu file** untuk Spotify Desktop via [Spicetify](https://spicetify.app/). Fitur yang dibuat: **AdBlock (best effort)** dan **Anti-Reshuffle (kunci pengaturan shuffle)**. Tidak ada APK Android, server, telemetry, request jaringan eksternal, atau dependency npm untuk pengguna.
+**Musik lebih nyaman. Shuffle lebih terkendali.**
 
-> **Status: prototype, belum diuji pada instalasi Spotify Desktop nyata.** Kompatibilitas bergantung pada versi Spotify/Spicetify. Gaptex tidak menjamin seluruh iklan audio terblokir dan tidak membuka hak Premium. Mengunci toggle shuffle tidak sama dengan menjamin urutan antrean lagu, terutama bila antrean diatur server Spotify.
+**Gaptex** adalah ekstensi ringan untuk **Spotify Desktop** yang membantu menghadirkan pengalaman mendengarkan musik lebih nyaman melalui dua fitur utama: **AdBlock** dan **Anti-Reshuffle**. Gaptex dirancang sederhana, tanpa akun tambahan, tanpa langganan, dan tanpa konfigurasi yang rumit.
 
-## Fungsi
+> **Versi:** 0.1.0 (prototipe) · **Platform utama:** Windows · **Lisensi:** MIT
+>
+> Gaptex masih dalam tahap pengujian. Efektivitas fitur dapat berbeda tergantung versi Spotify. Gaptex tidak memberikan akses Premium dan tidak menjamin semua iklan audio dapat diblokir.
 
-| Fitur | Cara kerja | Batasan |
+## Fitur
+
+| Fitur | Manfaat | Perlu diketahui |
 |---|---|---|
-| AdBlock | Menonaktifkan ad managers yang tersedia, mencoba override flag ads lokal, dan menyembunyikan container iklan di UI | API internal Spotify dapat berubah; audio ads mungkin tetap muncul |
-| Anti-Reshuffle | Menyimpan pilihan `Shuffle OFF/ON`, lalu mengembalikan toggle ke keadaan tersebut saat berubah | Tidak memaksa server Spotify memutar lagu sesuai urutan dan bukan fitur shuffle Fisher–Yates |
+| **AdBlock** | Berupaya mengurangi gangguan iklan dan menyembunyikan elemen iklan pada tampilan Spotify. | Penyaringan bersifat *best effort*. Sebagian iklan, khususnya iklan audio, mungkin tetap muncul. |
+| **Anti-Reshuffle** | Mempertahankan pilihan mode shuffle **ON** atau **OFF** ketika statusnya berubah. | Mengunci tombol shuffle **bukan** berarti mengunci urutan playlist atau antrean lagu yang dikendalikan Spotify. |
 
-## Instalasi Windows (paling mudah)
+### Keunggulan Gaptex
 
-Persyaratan: Spotify **Desktop**, [Spicetify CLI](https://spicetify.app/docs/getting-started/) terpasang, dan sudah berjalan setidaknya sekali.
+- **Ringan:** fitur inti berada dalam satu file ekstensi, `gaptex.js`.
+- **Praktis:** pemasangan melalui installer PowerShell untuk Windows.
+- **Tanpa akun baru:** gunakan akun Spotify Anda seperti biasa.
+- **Privasi:** pengaturan Gaptex tersimpan secara lokal; ekstensi ini tidak mengirim telemetri ke server Gaptex.
+- **Open source:** source code tersedia untuk dipelajari dan dikembangkan.
 
-1. Unduh GitHub Release ZIP atau **Code → Download ZIP** lalu ekstrak.
-2. Buka PowerShell **di folder hasil ekstraksi**.
-3. Jalankan:
+## Cara install di Windows
+
+**Yang diperlukan:** Windows, Spotify Desktop yang sudah terpasang, dan koneksi internet jika komputer perlu mengunduh komponen pendukung saat pemasangan pertama.
+
+1. **Pasang Spotify Desktop**, lalu buka dan login terlebih dahulu (untuk instalasi baru, biarkan terbuka sekitar satu menit). Setelah itu, tutup Spotify.
+2. **Unduh Gaptex** dari halaman [GitHub Releases](https://github.com/efendiyhy/gaptex/releases) jika rilis sudah diterbitkan. Alternatifnya, pada halaman repository pilih **Code → Download ZIP**.
+3. **Ekstrak ZIP**. Masuk ke folder yang berisi `install.ps1` dan `gaptex.js`.
+4. **Buka PowerShell** di folder tersebut: klik kanan area kosong folder lalu pilih **Open in Terminal**.
+5. **Jalankan installer:**
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
    ```
 
-4. Buka atau buka ulang Spotify Desktop. Klik **menu profil** dan lihat tiga menu `Gaptex`.
+6. Jika komponen pendukung belum ada, installer akan **meminta persetujuan Anda** untuk memasangnya melalui Windows Package Manager. Ikuti petunjuk yang tampil.
+7. Setelah proses selesai, **buka kembali Spotify Desktop**. Klik **menu profil** untuk mengakses pengaturan Gaptex.
 
-> Skrip pemasang bersifat lokal: hanya menyalin `gaptex.js`, menambahkan konfigurasi Spicetify, lalu menjalankan `spicetify apply`. Periksa skrip sebelum mengeksekusi. Tidak perlu administrator dalam konfigurasi Windows standar.
+> **Catatan instalasi:** Gaptex menggunakan komponen integrasi desktop pihak ketiga yang diperlukan agar ekstensi dapat berjalan di Spotify. Komponen itu **bukan** bagian dari file `gaptex.js`; installer Windows akan memeriksa dan menawarkan pemasangannya jika belum tersedia. Installer dapat membutuhkan koneksi internet pada tahap tersebut, dan prosesnya belum diuji di semua konfigurasi Windows. Periksa isi `install.ps1` sebelum menjalankannya.
 
-Jika Spicetify belum ada, lihat [petunjuk resminya](https://spicetify.app/docs/getting-started/). Untuk instalasi awal di Windows, salah satu perintah resmi adalah:
+**Tidak perlu memasang Node.js atau Git** untuk menggunakan Gaptex.
+
+## Cara menggunakan
+
+Setelah Gaptex aktif, buka menu profil Spotify Desktop dan pilih:
+
+- **Gaptex · AdBlock:** aktifkan/nonaktifkan upaya penyaringan iklan.
+- **Gaptex · Anti-Reshuffle:** aktifkan/nonaktifkan penguncian status shuffle.
+- **Gaptex · Shuffle yang dikunci: OFF/ON:** pilih apakah shuffle harus dipertahankan dalam keadaan mati atau menyala. Nilai awalnya **OFF**.
+
+Pengaturan akan disimpan secara lokal. Sebagian perubahan mungkin memerlukan restart Spotify.
+
+## Cara update
+
+Unduh versi terbaru, ekstrak, lalu jalankan kembali `install.ps1`. Installer mengganti file ekstensi sebelumnya dan menerapkan konfigurasi terbaru. Tidak perlu menghapus versi lama terlebih dahulu.
+
+## Cara uninstall
+
+Buka PowerShell pada folder Gaptex dan jalankan:
 
 ```powershell
-winget install Spicetify.Spicetify
+powershell -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
-**Tidak perlu Node.js bagi pengguna akhir.**
+Skrip menghapus ekstensi Gaptex dari konfigurasi Spotify Desktop dan menghapus file ekstensi lokalnya. **Komponen pendukung pihak ketiga tidak ikut dihapus**, karena mungkin digunakan ekstensi lain.
 
-## Instalasi manual (Windows)
+## Tanya jawab
 
-1. Salin `gaptex.js` ke `%appdata%\spicetify\Extensions\`.
-2. Jalankan:
+**Apakah Gaptex gratis?**  
+Ya. Gaptex merupakan proyek open-source dengan lisensi MIT.
 
-   ```powershell
-   spicetify config extensions gaptex.js
-   spicetify apply
-   ```
+**Apakah Gaptex mengaktifkan Spotify Premium?**  
+Tidak. Gaptex tidak mengubah status langganan atau hak akses akun Anda.
 
-**Linux / macOS:** simpan `gaptex.js` ke `~/.config/spicetify/Extensions/`, lalu jalankan dua perintah yang sama.
+**Apakah semua iklan pasti hilang?**  
+Tidak. AdBlock beroperasi dengan pendekatan *best effort* dan mungkin tidak berfungsi pada semua versi Spotify.
 
-## Menggunakan Gaptex
+**Apakah Anti-Reshuffle membuat antrean lagu tidak pernah berubah?**  
+Tidak. Fitur ini mempertahankan **status shuffle ON/OFF**, bukan menyimpan atau memaksakan urutan antrean lagu tertentu.
 
-Buka menu profil Spotify:
+**Mengapa Gaptex tidak muncul?**  
+Pastikan installer selesai tanpa error, tutup lalu buka ulang Spotify, dan coba jalankan installer lagi. Jika instalasi komponen pendukung gagal, periksa apakah `winget` tersedia di PowerShell dan koneksi internet aktif.
 
-- **Gaptex · AdBlock**: nyalakan/matikan upaya filter iklan. Dalam beberapa versi, perlu restart Spotify agar semua manajer iklan kembali normal jika dimatikan.
-- **Gaptex · Anti-Reshuffle**: nyalakan/matikan penguncian toggle shuffle.
-- **Gaptex · Shuffle yang dikunci: OFF/ON**: pilih nilai yang ingin dipertahankan. Mode default `OFF`, untuk mengurangi *forced shuffle*. Untuk shuffle tetap aktif, pilih `ON`; pilihan ini **tidak** mengunci urutan playlist/queue tertentu.
+**Mengapa installer gagal saat pemasangan pertama?**  
+Pastikan Spotify Desktop sudah pernah dibuka dan Anda sudah login. Pada beberapa sistem, pembaruan Spotify atau perubahan API aplikasi dapat menyebabkan kegagalan kompatibilitas.
 
-Preferensi disimpan di `Spicetify.LocalStorage`. Untuk debugging: buka DevTools Spotify dengan `Ctrl+Shift+I` dan cari `[Gaptex]` pada console.
+## Untuk pengembang
 
-## Update / uninstall
-
-- Untuk update: ganti file `gaptex.js` di folder Extensions dengan versi baru, lalu `spicetify apply`.
-- Hapus via `powershell -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1` dari folder proyek, atau manual:
-
-  ```powershell
-  spicetify config extensions gaptex.js-
-  spicetify apply
-  ```
-
-  Lalu hapus `%appdata%\spicetify\Extensions\gaptex.js` jika masih ada.
-
-## Pemecahan masalah
-
-| Masalah | Solusi |
-|---|---|
-| `spicetify` tidak dikenali | Pasang CLI resmi, buka terminal baru, cek `spicetify -v` |
-| Spotify tidak berubah | `spicetify backup apply` kemudian mulai ulang Spotify |
-| Gaptex tidak ada di profil | Periksa lokasi file, `spicetify config`, dan console DevTools |
-| Iklan audio masih muncul | API audio ad manager tidak tersedia/tidak efektif pada versi ini; lihat console `[Gaptex]`. Belum ada jaminan. |
-| Lagu tidak berurutan | Anti-Reshuffle hanya mengunci *shuffle toggle*, bukan queue atau aturan streaming. |
-| Mematikan AdBlock tetapi efek masih ada | Restart Spotify agar manajer iklan yang sempat dinonaktifkan dibuat ulang |
-
-## Untuk pengembang / push GitHub
-
-```bash
-git init
-git add .
-git commit -m "Initial Gaptex extension"
-git branch -M main
-git remote add origin https://github.com/USERNAME/gaptex.git
-git push -u origin main
-```
-
-Ganti `USERNAME` dan buat repositori kosong `gaptex` di GitHub terlebih dulu, atau gunakan `gh repo create gaptex --public --source=. --remote=origin --push` bila GitHub CLI telah login. **Jangan unggah file `cli-main.zip`** — repo ini adalah implementasi terpisah.
-
-Pengujian kode lokal (opsional, memerlukan Node.js 18+):
+Kode sumber berada di [github.com/efendiyhy/gaptex](https://github.com/efendiyhy/gaptex). Pengujian kode lokal (opsional) memerlukan Node.js 18+:
 
 ```bash
 npm run check
 npm test
 ```
 
-## Kredit dan lisensi
+## Lisensi dan disclaimer
 
-- Implementasi Gaptex **ditulis ulang** dengan merujuk konsep API dan dokumentasi publik dari [Spicetify](https://spicetify.app/docs/development/extensions/).
-- Referensi konseptual fitur pemblokiran iklan: [Adblockify oleh ririxi](https://github.com/rxri/spicetify-extensions/tree/main/adblock) (MIT). **Kode Adblockify tidak disalin/bundel.**
-- `cli-main.zip` yang diberikan pengguna merupakan proyek Spicetify CLI dengan lisensi LGPL-2.1; source CLI maupun `shuffle+.js` **tidak disalin** ke paket Gaptex. Konsep pengaturan toggle dibuat mandiri; jangan menganggap Gaptex sebagai fork resmi Spicetify.
-- Kode baru Gaptex: [MIT License](LICENSE). Tidak terafiliasi dengan Spotify AB atau Spicetify.
+Gaptex didistribusikan dengan **[MIT License](LICENSE)** dan merupakan proyek independen yang **tidak berafiliasi dengan Spotify**. Spotify adalah merek dagang milik pemiliknya masing-masing. Penggunaan ekstensi sepenuhnya menjadi tanggung jawab pengguna dan harus mematuhi ketentuan layanan yang berlaku.
 
-Lihat [catatan teknis](docs/IMPLEMENTATION.md) untuk batasan dan rancangan pengujian kompatibilitas.
+Untuk rincian arsitektur dan batasan implementasi, lihat [catatan teknis](docs/IMPLEMENTATION.md).
