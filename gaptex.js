@@ -1,7 +1,7 @@
 // NAME: Gaptex
 // AUTHOR: Gaptex contributors
 // DESCRIPTION: Two focused Spotify Desktop features: ad filtering and anti-reshuffle.
-// VERSION: 0.1.2
+// VERSION: 0.1.5
 // SPDX-License-Identifier: MIT
 //
 // This is an independent, readable implementation; it does not include
@@ -11,7 +11,7 @@
 (function bootGaptex() {
   "use strict";
 
-  const VERSION = "0.1.2";
+  const VERSION = "0.1.5";
   const SETTINGS_KEY = "gaptex:settings:v1";
   const CSS_ID = "gaptex-ad-style";
   const DEFAULTS = Object.freeze({

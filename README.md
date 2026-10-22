@@ -1,104 +1,87 @@
 # Gaptex
 
-**Musik lebih nyaman. Kendali shuffle lebih konsisten.**
+**Music your way. Shuffle under control.**
 
-**Gaptex** adalah ekstensi ringan untuk **Spotify Desktop** di Windows. Gaptex berfokus pada dua fungsi: **AdBlock** (penyaringan iklan dengan pendekatan *best effort*) dan **Anti-Reshuffle** (mempertahankan pilihan shuffle ON/OFF).
+**Gaptex** adalah utilitas ringan untuk Spotify Desktop di Windows. Dua fiturnya adalah **AdBlock eksperimental** (penyaringan elemen iklan yang didukung) dan **Anti-Reshuffle** (menjaga pengaturan shuffle tetap ON atau OFF). Tidak memerlukan akun Gaptex, Node.js, atau server tambahan.
 
-**Versi:** 0.1.3 · **Status:** Prototipe · **Lisensi kode Gaptex:** MIT
+**Versi:** 0.1.5 · **Status:** Prototype · **Sistem:** Windows 10/11
 
-> Gaptex bukan Spotify Premium, tidak mengubah status akun, dan tidak menjamin seluruh iklan audio dapat diblokir. Anti-Reshuffle hanya mempertahankan status tombol shuffle, **bukan** urutan lagu di antrean.
+> **Batasan:** AdBlock tidak menjamin pemblokiran iklan audio. Anti-Reshuffle hanya menjaga *status tombol shuffle*, bukan menjamin urutan queue atau membuka hak Premium. Fungsi dapat berubah setelah pembaruan Spotify.
 
-## Fitur
+## Instalasi langsung melalui PowerShell
 
-| Fitur | Deskripsi |
-|---|---|
-| **AdBlock** | Berupaya mengurangi tampilan iklan dan menonaktifkan pengelola iklan yang didukung versi Spotify Desktop. |
-| **Anti-Reshuffle** | Mengembalikan pilihan shuffle ke ON atau OFF saat berubah, sejauh didukung Spotify. |
-| **Pengaturan tersimpan** | Preferensi disimpan secara lokal pada perangkat. |
-| **Ringan** | Tidak memerlukan akun Gaptex, Node.js, atau server Gaptex. |
+Persyaratan: Spotify Desktop telah terpasang, sudah dibuka dan login setidaknya sekali. Pastikan instalasi Spotify kompatibel dengan komponen integrasi yang digunakan Gaptex.
 
-## Instalasi cepat di Windows
-
-**Syarat:** Windows 10/11, Spotify Desktop sudah terpasang, pernah dibuka, dan telah login. Tutup Spotify sebelum instalasi.
-
-1. Buka **PowerShell** (tidak perlu administrator pada konfigurasi normal).
-2. Tempel perintah berikut:
+1. Buka **Windows PowerShell** (umumnya **tanpa Run as administrator**).
+2. Jalankan **satu perintah**:
 
    ```powershell
    irm https://raw.githubusercontent.com/efendiyhy/gaptex/main/install-online.ps1 | iex
    ```
 
-3. Jika diminta, setujui pemasangan komponen integrasi desktop yang diperlukan. Komponen pihak ketiga memiliki lisensi tersendiri; baca [pemberitahuan dependensi](docs/THIRD_PARTY_NOTICES.md).
-4. Setelah muncul **Gaptex berhasil dipasang!**, buka kembali Spotify Desktop.
-5. Klik **foto profil di kanan atas** dan cari menu yang diawali `Gaptex`.
+3. Installer akan **membersihkan tampilan PowerShell**, menampilkan **kucing ASCII** dan tulisan besar **EK INSTRUMENTATION** berwarna-warni, lalu memeriksa persyaratan dan mengaktifkan Gaptex.
+4. Bila komponen integrasi desktop belum terpasang, installer meminta persetujuan dan mengarahkan ke informasi pihak ketiga. Spotify yang sedang berjalan akan ditutup otomatis saat pemasangan. **Simpan pekerjaan atau hentikan pemutaran terlebih dahulu.**
+5. Setelah status berhasil, buka Spotify kembali, klik foto profil kanan atas, lalu cari menu yang diawali **Gaptex**.
 
-> Perintah ini mengambil installer langsung dari repository publik `efendiyhy/gaptex`. [Periksa isi installer](install-online.ps1) sebelum menjalankan kode jarak jauh. Pengguna tidak perlu mengunduh ZIP atau memasang Git.
+Installer hanya menampilkan keberhasilan jika proses aktivasi selesai tanpa kesalahan yang terdeteksi. Jika gagal, pesan dan potongan log asli akan ditampilkan. Installer **tidak otomatis menghapus Spotify**, dan **meminta izin** sebelum langkah pemulihan backup yang dapat menimpa modifikasi lain.
 
-### Instalasi menggunakan ZIP
+**Keamanan:** perintah ini menjalankan skrip dari repository publik. Periksa [source installer](install-online.ps1) terlebih dahulu. Dependensi integrasi memiliki lisensi pihak ketiga: [informasi teknis dan hak cipta](docs/THIRD_PARTY_NOTICES.md).
 
-Unduh ZIP dari halaman [GitHub Releases](https://github.com/efendiyhy/gaptex/releases), ekstrak seluruhnya, lalu buka PowerShell di folder `Gaptex` dan jalankan:
+## Instalasi offline (melalui ZIP)
+
+Unduh ZIP rilis dari [Gaptex Releases](https://github.com/efendiyhy/gaptex/releases), ekstrak semuanya, buka PowerShell dalam folder hasil ekstrak, kemudian jalankan:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-## Cara menggunakan
+## Fitur dan penggunaan
 
-Klik **foto profil Spotify Desktop** di pojok kanan atas, lalu cari:
+| Fitur | Fungsi | Batasan |
+|---|---|---|
+| AdBlock | Upaya mengurangi elemen iklan dan menonaktifkan pengelola iklan yang tersedia | Tidak menjamin audio ads terblokir |
+| Anti-Reshuffle | Mempertahankan mode shuffle ON/OFF yang dipilih | Tidak mengunci urutan lagu pada server |
+| Pengaturan lokal | Simpan status fitur di komputer | Tidak perlu akun Gaptex |
 
-- **Gaptex · AdBlock:** nyalakan atau matikan penyaringan iklan.
-- **Gaptex · Anti-Reshuffle:** aktifkan penguncian status shuffle.
-- **Gaptex · Shuffle yang dikunci: OFF/ON:** pilih status yang ingin dipertahankan. Default: **OFF**.
-
-Sebagian perubahan membutuhkan restart Spotify. Hasil dapat berbeda sesuai versi Spotify dan jenis akun.
+Di menu profil Spotify Desktop tersedia **Gaptex · AdBlock**, **Gaptex · Anti-Reshuffle**, dan **Gaptex · Shuffle yang dikunci: OFF/ON**.
 
 ## Update
 
-Jalankan kembali perintah instalasi PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/efendiyhy/gaptex/main/install-online.ps1 | iex
-```
-
-Untuk proyek produksi, versi rilis yang ditetapkan lebih disarankan daripada selalu mengambil branch `main`.
+Jalankan kembali instalasi PowerShell yang sama. Installer mengganti file Gaptex yang relevan dan menerapkan perubahan.
 
 ## Uninstall
 
-Jika menggunakan paket ZIP, buka folder Gaptex di PowerShell dan jalankan:
+Di folder paket Gaptex ZIP, jalankan:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
-Uninstaller hanya menghapus Gaptex; komponen integrasi bersama tetap ada karena mungkin dipakai ekstensi lain.
+Penghapusan hanya melepas Gaptex, tidak menghapus komponen integrasi yang mungkin digunakan aplikasi/ekstensi lain.
 
-## Jika tidak muncul setelah instalasi
+## Jika instalasi gagal
 
-1. Tutup Spotify sepenuhnya, kemudian buka kembali.
-2. Jalankan kembali installer Gaptex, lalu cek pesan berhasil/gagal.
-3. Jika muncul error, buka PowerShell dan lihat 40 baris terakhir log dengan perintah berikut:
+Installer **bukan** sekadar menampilkan pesan generik. Ia mencatat keluaran teknis asli, lalu mengidentifikasi beberapa masalah umum: backup lama, Spotify belum pernah login, akses folder yang tidak memadai, atau versi Spotify yang belum kompatibel.
 
-   ```powershell
-   Get-Content "$env:LOCALAPPDATA\Gaptex\logs\install.log" -Tail 40
-   ```
+Baca log:
 
-   Installer v0.1.3 menangani pesan diagnostik dari komponen integrasi tanpa langsung berhenti ketika program menulis ke *stderr*. Jika aktivasi benar-benar gagal (exit code bukan 0), penyebabnya akan tercatat di log.
-4. Laporkan masalah melalui [GitHub Issues](https://github.com/efendiyhy/gaptex/issues), sertakan versi Spotify dan ringkasan pesan error. Hapus informasi pribadi dari log sebelum membagikannya.
+```powershell
+Get-Content "$env:LOCALAPPDATA\Gaptex\logs\install.log" -Tail 60
+```
 
-## FAQ
+Sebelum memposting log ke [GitHub Issues](https://github.com/efendiyhy/gaptex/issues), **hapus nama pengguna/path privat, token, atau data sensitif** yang mungkin tercantum. Untuk detail urutan perbaikan, lihat [dokumentasi troubleshooting](docs/TROUBLESHOOTING.md).
 
-**Apakah Gaptex gratis?** Ya, source code Gaptex menggunakan lisensi MIT.
+## Pengembangan
 
-**Apakah Gaptex membuka fitur Premium?** Tidak. Gaptex tidak memberikan hak langganan berbayar.
+Source: <https://github.com/efendiyhy/gaptex>
 
-**Apakah semua iklan audio hilang?** Tidak dijamin. Fitur AdBlock masih eksperimental.
+```bash
+npm run check
+npm test
+```
 
-**Apakah Anti-Reshuffle menjaga urutan playlist?** Tidak. Versi ini mengunci **status shuffle**, bukan seluruh antrean lagu.
+Node.js hanya diperlukan bagi pengembang untuk pengujian, bukan pengguna.
 
-**Apakah ada pengiriman data ke server Gaptex?** Tidak ada telemetri atau akun Gaptex pada ekstensi saat ini. Spotify Desktop dan komponen pendukung tetap dapat terhubung ke layanan mereka sendiri.
+## Lisensi dan afiliasi
 
-## Pengembangan, lisensi, dan ketentuan
-
-Source: [github.com/efendiyhy/gaptex](https://github.com/efendiyhy/gaptex). Kode Gaptex menggunakan [MIT License](LICENSE); komponen pihak ketiga memiliki hak cipta dan lisensi terpisah yang dijelaskan dalam [THIRD_PARTY_NOTICES](docs/THIRD_PARTY_NOTICES.md).
-
-Gaptex adalah proyek independen, tidak berafiliasi dengan atau didukung Spotify. Gunakan sesuai ketentuan layanan yang berlaku. Fitur dan kompatibilitas masih memerlukan pengujian langsung di berbagai versi Spotify Desktop.
+Kode Gaptex dilisensikan menggunakan **MIT License** (lihat [LICENSE](LICENSE)). Komponen integrasi pihak ketiga tetap mempunyai hak cipta serta lisensinya masing-masing, didokumentasikan pada [Third-party Notices](docs/THIRD_PARTY_NOTICES.md). Gaptex bukan produk resmi, disponsori, atau didukung Spotify. Penggunaan harus sesuai syarat layanan yang berlaku.
