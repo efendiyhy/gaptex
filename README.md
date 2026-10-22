@@ -23,26 +23,29 @@
 - **Privasi:** pengaturan Gaptex tersimpan secara lokal; ekstensi ini tidak mengirim telemetri ke server Gaptex.
 - **Open source:** source code tersedia untuk dipelajari dan dikembangkan.
 
-## Cara install di Windows
+## Instalasi langsung di PowerShell (Windows)
 
-**Yang diperlukan:** Windows, Spotify Desktop yang sudah terpasang, dan koneksi internet jika komputer perlu mengunduh komponen pendukung saat pemasangan pertama.
+**Persyaratan:** Spotify Desktop sudah terpasang dan sudah pernah dibuka/login (disarankan selama 60 detik untuk pemasangan pertama). Setelah itu, tutup Spotify.
 
-1. **Pasang Spotify Desktop**, lalu buka dan login terlebih dahulu (untuk instalasi baru, biarkan terbuka sekitar satu menit). Setelah itu, tutup Spotify.
-2. **Unduh Gaptex** dari halaman [GitHub Releases](https://github.com/efendiyhy/gaptex/releases) jika rilis sudah diterbitkan. Alternatifnya, pada halaman repository pilih **Code → Download ZIP**.
-3. **Ekstrak ZIP**. Masuk ke folder yang berisi `install.ps1` dan `gaptex.js`.
-4. **Buka PowerShell** di folder tersebut: klik kanan area kosong folder lalu pilih **Open in Terminal**.
-5. **Jalankan installer:**
+1. Buka **PowerShell** di Windows, tanpa perlu hak administrator pada konfigurasi standar.
+2. Salin dan jalankan **satu perintah** berikut:
 
    ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+   irm https://raw.githubusercontent.com/efendiyhy/gaptex/main/install-online.ps1 | iex
    ```
 
-6. Jika komponen pendukung belum ada, installer akan **meminta persetujuan Anda** untuk memasangnya melalui Windows Package Manager. Ikuti petunjuk yang tampil.
-7. Setelah proses selesai, **buka kembali Spotify Desktop**. Klik **menu profil** untuk mengakses pengaturan Gaptex.
+3. Jika komponen integrasi Spotify Desktop belum terpasang, installer meminta **izin** untuk memasangnya menggunakan Windows Package Manager (`winget`).
+4. Setelah selesai, buka kembali Spotify Desktop dan akses pengaturan **Gaptex** lewat menu profil.
 
-> **Catatan instalasi:** Gaptex menggunakan komponen integrasi desktop pihak ketiga yang diperlukan agar ekstensi dapat berjalan di Spotify. Komponen itu **bukan** bagian dari file `gaptex.js`; installer Windows akan memeriksa dan menawarkan pemasangannya jika belum tersedia. Installer dapat membutuhkan koneksi internet pada tahap tersebut, dan prosesnya belum diuji di semua konfigurasi Windows. Periksa isi `install.ps1` sebelum menjalankannya.
+> Installer mengunduh `gaptex.js` langsung dari repository resmi, lalu memasangnya ke profil Windows pengguna. Gaptex **masih bergantung pada Spicetify CLI sebagai komponen teknis pihak ketiga**, yang dipasang hanya dengan persetujuan pengguna. Pengguna tidak perlu memasang Git atau Node.js. Periksa isi [skrip instalasi online](install-online.ps1) sebelum mengeksekusi kode dari internet.
 
-**Tidak perlu memasang Node.js atau Git** untuk menggunakan Gaptex.
+**Alternatif tanpa menjalankan skrip jarak jauh:** unduh repository sebagai ZIP, ekstrak, lalu buka PowerShell di folder yang memuat `install.ps1` dan jalankan:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+> **Penting:** URL instalasi satu perintah mulai berfungsi **setelah `install-online.ps1` dan `gaptex.js` dipush ke branch `main` di GitHub**. Jika repository belum tersedia atau masih privat, pengguna akan mendapatkan error HTTP 404 atau 403.
 
 ## Cara menggunakan
 
@@ -56,7 +59,13 @@ Pengaturan akan disimpan secara lokal. Sebagian perubahan mungkin memerlukan res
 
 ## Cara update
 
-Unduh versi terbaru, ekstrak, lalu jalankan kembali `install.ps1`. Installer mengganti file ekstensi sebelumnya dan menerapkan konfigurasi terbaru. Tidak perlu menghapus versi lama terlebih dahulu.
+Jalankan kembali perintah satu baris di PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/efendiyhy/gaptex/main/install-online.ps1 | iex
+```
+
+Installer mengambil versi terkini dari branch `main`. Untuk hasil yang lebih stabil, distribusikan versi rilis dengan tag tetap.
 
 ## Cara uninstall
 
