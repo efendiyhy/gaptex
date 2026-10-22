@@ -63,6 +63,42 @@ function Invoke-GaptexTool {
     }
 }
 
+function Stop-GaptexSpotify {
+    # Close Spotify before the CLI applies changes to its local installation.
+    $running = @(Get-Process -Name 'Spotify' -ErrorAction SilentlyContinue)
+    if ($running.Count -eq 0) {
+        Add-Content -LiteralPath $log -Value 'Spotify was already closed.'
+        return
+    }
+
+    Write-Host 'Menutup Spotify Desktop secara otomatis...'
+    Add-Content -LiteralPath $log -Value ("Closing Spotify processes: {0}" -f (($running | ForEach-Object { $_.Id }) -join ', '))
+
+    foreach ($process in $running) {
+        try {
+            Stop-Process -Id $process.Id -Force -ErrorAction Stop
+        }
+        catch {
+            # The process may have exited on its own between Get- and Stop-Process.
+            if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
+                throw "Gaptex tidak bisa menutup Spotify (PID $($process.Id)). Tutup Spotify lewat Task Manager, kemudian coba lagi. Detail: $($_.Exception.Message)"
+            }
+        }
+    }
+
+    # Wait until all Spotify processes have actually exited before applying.
+    for ($attempt = 0; $attempt -lt 40; $attempt++) {
+        if (-not (Get-Process -Name 'Spotify' -ErrorAction SilentlyContinue)) {
+            Add-Content -LiteralPath $log -Value 'Spotify closed successfully.'
+            Write-Host 'Spotify sudah ditutup.'
+            return
+        }
+        Start-Sleep -Milliseconds 250
+    }
+
+    throw 'Spotify masih berjalan setelah 10 detik. Hentikan dari Task Manager kemudian ulangi instalasi Gaptex.'
+}
+
 Write-Host ''
 Write-Host '================================='
 Write-Host '         Gaptex Installer'
@@ -99,6 +135,7 @@ if (-not (Invoke-GaptexTool -Executable $runtime -Arguments @('config', 'extensi
     throw "Gagal mendaftarkan Gaptex. Lihat log: $log"
 }
 Write-Host '[3/3] Mengaktifkan Gaptex...'
+Stop-GaptexSpotify
 if (-not (Invoke-GaptexTool -Executable $runtime -Arguments @('apply'))) {
     if (-not (Invoke-GaptexTool -Executable $runtime -Arguments @('backup', 'apply'))) {
         throw "Gagal mengaktifkan Gaptex. Tutup Spotify, lalu jalankan ulang installer. Lihat log: $log"
