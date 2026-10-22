@@ -4,7 +4,7 @@
 
 **Gaptex** adalah utilitas ringan untuk Spotify Desktop di Windows. Dua fiturnya adalah **AdBlock eksperimental** (penyaringan elemen iklan yang didukung) dan **Anti-Reshuffle** (menjaga pengaturan shuffle tetap ON atau OFF). Tidak memerlukan akun Gaptex, Node.js, atau server tambahan.
 
-**Versi:** 0.1.5 · **Status:** Prototype · **Sistem:** Windows 10/11
+**Versi:** 0.1.6 · **Status:** Prototype · **Sistem:** Windows 10/11
 
 > **Batasan:** AdBlock tidak menjamin pemblokiran iklan audio. Anti-Reshuffle hanya menjaga *status tombol shuffle*, bukan menjamin urutan queue atau membuka hak Premium. Fungsi dapat berubah setelah pembaruan Spotify.
 
@@ -62,6 +62,17 @@ Penghapusan hanya melepas Gaptex, tidak menghapus komponen integrasi yang mungki
 ## Jika instalasi gagal
 
 Installer **bukan** sekadar menampilkan pesan generik. Ia mencatat keluaran teknis asli, lalu mengidentifikasi beberapa masalah umum: backup lama, Spotify belum pernah login, akses folder yang tidak memadai, atau versi Spotify yang belum kompatibel.
+
+### Jika muncul `Spotify cannot be backed up at this state`
+
+Kondisi ini **tidak bisa diatasi dengan menutup Spotify atau mengulang `backup apply`**. Installer akan menghentikan percobaan otomatis dan menjelaskan langkah perbaikan:
+
+1. Uninstall aplikasi **Spotify Desktop** melalui **Settings > Apps > Installed apps**. Jangan menghapus akun Spotify atau playlist.
+2. Pasang versi Desktop resmi dari <https://www.spotify.com/download/windows/> (hindari versi Microsoft Store untuk kompatibilitas terbaik).
+3. Buka Spotify, login, dan biarkan terbuka minimal **60 detik** agar file pengaturan dibuat.
+4. Tutup Spotify, kemudian jalankan kembali installer Gaptex PowerShell. Jika masih bermasalah, jalankan `spicetify backup apply` secara manual untuk mendapatkan error yang lebih detail.
+
+Penghapusan aplikasi Spotify bisa menyebabkan **lagu offline harus diunduh ulang**. Installer Gaptex tidak akan menghapus/menginstal ulang Spotify secara otomatis.
 
 Baca log:
 

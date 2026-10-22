@@ -1,13 +1,11 @@
-# Release Gaptex 0.1.5
+# Release Gaptex 0.1.6 — Diagnostik instalasi
 
-- Installer offline/online menggunakan logika aktivasi yang sama.
-- Menampilkan animasi visual statis ASCII kucing dan teks besar EK INSTRUMENTATION, dengan warna berbeda per baris.
-- Membersihkan terminal ketika installer dimulai; menyesuaikan lebar teks pada terminal yang lebih sempit.
-- Menghentikan proses Spotify sebelum konfigurasi/penerapan.
-- Memisahkan stdout dan stderr program eksternal di Windows PowerShell 5.1.
-- Mencoba `apply` dahulu, lalu `backup apply` jika backup belum ada.
-- Meminta persetujuan sebelum `restore backup apply` ketika backup tidak sinkron.
-- Menampilkan isi log asli jika aktivasi tetap gagal.
-- Komponen pihak ketiga tetap diungkapkan dalam dokumen lisensi.
+- Tetap menggunakan banner warna-warni EK INSTRUMENTATION dan gambar kucing.
+- Membedakan instalasi Spotify rusak/tidak bisa dibackup dari backup belum tersedia.
+- Tidak lagi menjalankan `backup apply` secara sia-sia setelah pesan `cannot be backed up at this state`.
+- Menampilkan instruksi instalasi ulang Spotify Desktop yang aman, tanpa otomatis menghapus aplikasi/data.
+- Upaya menormalkan log keluaran command (ANSI/Unicode) yang pada versi lama menjadi karakter acak.
+- Instalasi online/offline tetap memakai satu engine `install.ps1`.
+- Komponen pihak ketiga tetap tercantum dalam notice.
 
-**Catatan:** Ini adalah paket source yang diuji secara statis dan menggunakan tes JavaScript otomatis. Belum ada uji end-to-end pada Spotify Desktop di Windows nyata.
+**Batasan pengujian:** Uji statis, pemeriksaan struktur, dan pengujian JS. Belum diuji di Spotify Desktop nyata pada Windows.

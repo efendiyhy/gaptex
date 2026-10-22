@@ -1,4 +1,4 @@
-# Gaptex Online Installer v0.1.5
+# Gaptex Online Installer v0.1.6
 # Official source: https://github.com/efendiyhy/gaptex
 # Installer engine and extension are fetched from the same branch.
 # Third-party notices: docs/THIRD_PARTY_NOTICES.md

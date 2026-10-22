@@ -43,3 +43,26 @@ test('project documents runtime and license, no third party binary bundled', () 
   assert.match(notice, /LGPL-2\.1/);
   assert.ok(!fs.existsSync(path.join(root, 'spicetify.exe')));
 });
+
+
+
+
+
+
+
+
+
+test('installer detects unbackuppable Spotify and stops destructive retries', () => {
+  assert.match(core, /cannot be backed up at this state/i);
+  assert.match(core, /LastFailureCategory = 'spotify-dirty'/);
+  assert.match(core, /reinstall Spotify Desktop/i);
+});
+test('online installer downloads same local core', () => {
+  assert.match(remote, /'install.ps1','gaptex.js'/);
+  assert.match(remote, /& \$scriptPath/);
+});
+test('branding remains visible with clean console', () => {
+  assert.match(core, /Clear-Host/);
+  assert.match(core, /CAT PROTOCOL/);
+  assert.match(core, /INSTRUMENTATION/);
+});

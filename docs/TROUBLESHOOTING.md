@@ -21,11 +21,14 @@ Get-Content "$env:LOCALAPPDATA\Gaptex\logs\install.log" -Tail 60
 | Pesan | Tindakan |
 |---|---|
 | `Spotify version mismatch` | Periksa dukungan versi Spotify dan pembaruan runtime; tidak selalu dapat diperbaiki otomatis. |
-| `You haven't backed up` | Installer mencoba menyiapkan backup awal. |
+| `You haven't backed up` (tanpa error kondisi instalasi) | Installer mencoba menyiapkan backup awal. |
+| `Spotify cannot be backed up at this state` / `Failed to backup app files` | Instalasi Spotify perlu dipulihkan dengan reinstall resmi; jangan ulang `backup apply` terus. Buka Spotify dan login 60 detik setelah reinstall. |
 | `Preprocessed Spotify data is outdated` | Installer meminta izin pemulihan backup dan apply ulang. |
 | `After clearing backup, Spotify cannot be backed up again` | Backup baru tidak dapat dibuat sebelum memulihkan Spotify ke kondisi semula. |
 | `Cannot find prefs` | Pastikan Spotify Desktop pernah dibuka dan Anda sudah login. Periksa jenis instalasi Spotify. |
 | `Access denied` | Periksa izin direktori Spotify. Jangan langsung menjalankan semua perintah sebagai administrator tanpa diagnosis. |
+
+Panduan unduhan Spotify resmi: <https://www.spotify.com/download/windows/>.
 
 CLI dokumentasi: <https://spicetify.app/docs/cli/commands> dan <https://spicetify.app/docs/faq>.
 

@@ -1,10 +1,10 @@
-# Gaptex Installer v0.1.5 - Windows PowerShell 5.1+ (local or online)
+# Gaptex Installer v0.1.6 - Windows PowerShell 5.1+ (local or online)
 # Runtime attribution: docs/THIRD_PARTY_NOTICES.md
 $ErrorActionPreference = 'Stop'
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     throw 'Gaptex saat ini hanya mendukung Windows.'
 }
-$Version = '0.1.5'
+$Version = '0.1.6'
 $Repo = 'https://github.com/efendiyhy/gaptex'
 $source = Join-Path $PSScriptRoot 'gaptex.js'
 $logDir = Join-Path $env:LOCALAPPDATA 'Gaptex\logs'
@@ -12,6 +12,7 @@ $log = Join-Path $logDir 'install.log'
 New-Item -Path $logDir -ItemType Directory -Force | Out-Null
 $script:LastOutput = ''
 $script:LastExitCode = -1
+$script:LastFailureCategory = ''
 
 function Write-GaptexText {
     param([string]$Value, [ConsoleColor]$Color = [ConsoleColor]::Green)
@@ -82,6 +83,24 @@ function Find-GaptexRuntime {
     return $null
 }
 
+function ConvertTo-GaptexPlainOutput {
+    param([string]$Text)
+    if ([string]::IsNullOrEmpty($Text)) { return '' }
+    # Some native CLI versions emit byte streams that get decoded as UTF-16.
+    # Example: `嬛洱灳捩瑥晩` represents ANSI escape bytes + `spicetify`.
+    if ($Text -match '[\u3400-\u9FFF]') {
+        try {
+            $fixed = [Text.Encoding]::UTF8.GetString([Text.Encoding]::Unicode.GetBytes($Text))
+            if ($fixed -match '(?i)spicetify|spotify|error|warning|info|backup') {
+                $Text = $fixed
+            }
+        } catch { }
+    }
+    # Strip terminal ANSI colors from saved diagnostics.
+    $Text = [regex]::Replace($Text, [string][char]27 + '\[[0-9;?]*[ -/]*[@-~]', '')
+    return $Text.TrimEnd([char]0)
+}
+
 function Invoke-GaptexCommand {
     param([Parameter(Mandatory)][string]$Executable,
           [string[]]$Arguments = @())
@@ -107,7 +126,7 @@ function Invoke-GaptexCommand {
         $script:LastExitCode = $process.ExitCode
         foreach ($file in @($outFile,$errFile)) {
             if (Test-Path -LiteralPath $file -PathType Leaf) {
-                $value = [IO.File]::ReadAllText($file)
+                $value = ConvertTo-GaptexPlainOutput ([IO.File]::ReadAllText($file))
                 if ($value) {
                     $script:LastOutput += $value + [Environment]::NewLine
                     [IO.File]::AppendAllText($log, $value + [Environment]::NewLine)
@@ -158,7 +177,15 @@ function Show-GaptexDiagnostic {
     Write-Host ''
     Write-GaptexText '  [!] AKTIVASI BELUM BERHASIL' ([ConsoleColor]::Red)
     $out = $script:LastOutput
-    if ($out -match '(?i)Spotify version mismatch|Spotify version is not supported') {
+    if ($script:LastFailureCategory -eq 'spotify-dirty' -or $out -match '(?i)cannot be backed up at this state|Failed to backup app files|Please re-install Spotify') {
+        Write-GaptexText '  Penyebab: file instalasi Spotify tidak dalam kondisi yang dapat dibackup.' ([ConsoleColor]::Yellow)
+        Write-Host '  Solusi: reinstall Spotify Desktop resmi (tanpa menghapus akun/playlist).'
+        Write-Host '    1. Windows Settings > Apps > Installed apps > Spotify > Uninstall.'
+        Write-Host '    2. Pasang ulang dari https://www.spotify.com/download/windows/'
+        Write-Host '    3. Jalankan Spotify, login, biarkan terbuka sekurangnya 60 detik.'
+        Write-Host '    4. Tutup Spotify sepenuhnya dan jalankan ulang installer Gaptex.'
+        Write-Host '  Catatan: unduhan lagu offline mungkin perlu diunduh ulang.'
+    } elseif ($out -match '(?i)Spotify version mismatch|Spotify version is not supported') {
         Write-GaptexText '  Penyebab: versi Spotify dan komponen integrasi tidak kompatibel.' ([ConsoleColor]::Yellow)
         Write-GaptexText '  Periksa versi Spotify dan pembaruan komponen pendukung.' ([ConsoleColor]::Yellow)
     } elseif ($out -match '(?i)cannot find pref|prefs.path|prefs file|Spotify installation path not found') {
@@ -193,6 +220,13 @@ function Enable-Gaptex {
     if (Invoke-GaptexCommand -Executable $Runtime -Arguments @('apply','--no-restart')) { return $true }
     $firstFailure = $script:LastOutput
     Add-GaptexLog ('First apply unsuccessful. Output: ' + ($firstFailure -replace '[\r\n]+',' | '))
+    # This state requires clean Spotify installation. Retrying backup/apply
+    # cannot make it healthy and only creates confusing repeated errors.
+    if ($firstFailure -match '(?i)cannot be backed up at this state|Failed to backup app files|Please re-install Spotify') {
+        $script:LastFailureCategory = 'spotify-dirty'
+        Add-GaptexLog 'DIRTY_SPOTIFY: clean reinstall required; stopping automatic backup retries.'
+        return $false
+    }
     if ($firstFailure -match '(?i)Spotify version mismatch|Spotify version is not supported') {
         return $false
     }
@@ -202,6 +236,11 @@ function Enable-Gaptex {
         Write-GaptexText '  [*] Aktivasi awal membutuhkan persiapan tambahan...' ([ConsoleColor]::Yellow)
         if (Invoke-GaptexCommand -Executable $Runtime -Arguments @('backup','apply','--no-restart')) { return $true }
         $secondFailure = $script:LastOutput
+        if ($secondFailure -match '(?i)cannot be backed up at this state|Failed to backup app files|Please re-install Spotify') {
+            $script:LastFailureCategory = 'spotify-dirty'
+            Add-GaptexLog 'DIRTY_SPOTIFY: reinstall required; cannot create a valid backup.'
+            return $false
+        }
         if ($secondFailure -match '(?i)Spotify version mismatch|Spotify version is not supported') { return $false }
         if ($secondFailure -match '(?i)Please restore first then backup|After clearing backup|Preprocessed Spotify data is outdated') {
             if (Request-GaptexRestore) {
@@ -224,6 +263,7 @@ function Enable-Gaptex {
 }
 
 Show-GaptexSplash
+$script:LastFailureCategory = ''
 Add-GaptexLog "===== START GAPTEX INSTALL v$Version ====="
 try {
     Write-GaptexText '  [1/5] Validasi paket Gaptex...' ([ConsoleColor]::Cyan)
