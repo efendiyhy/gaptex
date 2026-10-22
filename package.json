@@ -1,0 +1,13 @@
+{
+  "name": "gaptex-spicetify",
+  "version": "0.1.0",
+  "private": false,
+  "description": "A minimal ad-filtering and shuffle-lock extension for Spotify Desktop via Spicetify",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "check": "node --check gaptex.js"
+  },
+  "engines": { "node": ">=18" },
+  "keywords": ["spicetify", "spotify", "extension", "adblock", "shuffle"]
+}
