@@ -4,7 +4,7 @@
 
 **Gaptex** adalah ekstensi ringan untuk **Spotify Desktop** di Windows. Gaptex berfokus pada dua fungsi: **AdBlock** (penyaringan iklan dengan pendekatan *best effort*) dan **Anti-Reshuffle** (mempertahankan pilihan shuffle ON/OFF).
 
-**Versi:** 0.1.2 · **Status:** Prototipe · **Lisensi kode Gaptex:** MIT
+**Versi:** 0.1.3 · **Status:** Prototipe · **Lisensi kode Gaptex:** MIT
 
 > Gaptex bukan Spotify Premium, tidak mengubah status akun, dan tidak menjamin seluruh iklan audio dapat diblokir. Anti-Reshuffle hanya mempertahankan status tombol shuffle, **bukan** urutan lagu di antrean.
 
@@ -76,7 +76,13 @@ Uninstaller hanya menghapus Gaptex; komponen integrasi bersama tetap ada karena 
 
 1. Tutup Spotify sepenuhnya, kemudian buka kembali.
 2. Jalankan kembali installer Gaptex, lalu cek pesan berhasil/gagal.
-3. Jika muncul error, lihat log di `%LOCALAPPDATA%\Gaptex\logs\install.log`.
+3. Jika muncul error, buka PowerShell dan lihat 40 baris terakhir log dengan perintah berikut:
+
+   ```powershell
+   Get-Content "$env:LOCALAPPDATA\Gaptex\logs\install.log" -Tail 40
+   ```
+
+   Installer v0.1.3 menangani pesan diagnostik dari komponen integrasi tanpa langsung berhenti ketika program menulis ke *stderr*. Jika aktivasi benar-benar gagal (exit code bukan 0), penyebabnya akan tercatat di log.
 4. Laporkan masalah melalui [GitHub Issues](https://github.com/efendiyhy/gaptex/issues), sertakan versi Spotify dan ringkasan pesan error. Hapus informasi pribadi dari log sebelum membagikannya.
 
 ## FAQ
