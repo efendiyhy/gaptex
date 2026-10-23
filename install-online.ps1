@@ -1,30 +1,20 @@
-# Gaptex Online Installer v0.1.6
-# Official source: https://github.com/efendiyhy/gaptex
-# Installer engine and extension are fetched from the same branch.
-# Third-party notices: docs/THIRD_PARTY_NOTICES.md
+# Gaptex online bootstrap - EK Instrumentation. Windows PowerShell 5.1+.
 $ErrorActionPreference = 'Stop'
-if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
-    throw 'Gaptex Installer hanya mendukung Windows.'
-}
-if ($PSVersionTable.PSVersion.Major -le 5) {
-    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-}
-$base = 'https://raw.githubusercontent.com/efendiyhy/gaptex/main'
-$temporary = Join-Path ([IO.Path]::GetTempPath()) ('Gaptex-' + [guid]::NewGuid().ToString('N'))
-New-Item -Path $temporary -ItemType Directory -Force | Out-Null
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$Repo = 'https://raw.githubusercontent.com/efendiyhy/gaptex/main'
+$work = Join-Path $env:TEMP ('Gaptex-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $work -Force | Out-Null
 try {
-    New-Item -Path (Join-Path $temporary 'docs') -ItemType Directory -Force | Out-Null
-    foreach ($item in @('install.ps1','gaptex.js','docs/THIRD_PARTY_NOTICES.md')) {
-        $target = Join-Path $temporary ($item -replace '/', '\')
-        $url = "$base/$item"
-        Invoke-WebRequest -Uri $url -OutFile $target -UseBasicParsing -ErrorAction Stop
-        if (-not (Test-Path -LiteralPath $target -PathType Leaf) -or (Get-Item -LiteralPath $target).Length -eq 0) {
-            throw "Unduhan tidak lengkap: $item"
+    foreach ($filename in @('install.ps1', 'gaptex.js')) {
+        $url = "$Repo/$filename"
+        $destination = Join-Path $work $filename
+        Invoke-WebRequest -Uri $url -UseBasicParsing -OutFile $destination -ErrorAction Stop
+        if (-not (Test-Path -LiteralPath $destination) -or (Get-Item -LiteralPath $destination).Length -lt 100) {
+            throw "File Gaptex gagal diunduh: $filename"
         }
     }
-    $scriptPath = Join-Path $temporary 'install.ps1'
-    & $scriptPath
-}
-finally {
-    Remove-Item -LiteralPath $temporary -Recurse -Force -ErrorAction SilentlyContinue
+    # Invoke in the current PowerShell process so exit errors remain visible.
+    & (Join-Path $work 'install.ps1')
+} finally {
+    Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 }

@@ -1,264 +1,144 @@
 // NAME: Gaptex
-// AUTHOR: Gaptex contributors
-// DESCRIPTION: Two focused Spotify Desktop features: ad filtering and anti-reshuffle.
-// VERSION: 0.1.5
+// AUTHOR: EK Instrumentation
+// DESCRIPTION: Shuffle mode lock and experimental ad filtering for Spicetify.
+// VERSION: 0.3.0
 // SPDX-License-Identifier: MIT
-//
-// This is an independent, readable implementation; it does not include
-// upstream Spicetify CLI code or the Adblockify extension.
-// No third-party endpoints, trackers, or remote code execution.
-
-(function bootGaptex() {
-  "use strict";
-
-  const VERSION = "0.1.5";
-  const SETTINGS_KEY = "gaptex:settings:v1";
-  const CSS_ID = "gaptex-ad-style";
-  const DEFAULTS = Object.freeze({
-    adblock: true,
-    antiReshuffle: true,
-    preferredShuffle: false,
-  });
-  const AD_CSS = `
-    [data-testid="home-ads-container"],
-    [data-testid="home-ad-card"],
-    [data-testid="billboard-minimized"],
-    [data-testid="billboard-image-link"],
-    [data-testid="leaderboard-ad"],
-    [data-testid="html-hpto-container"],
-    [data-testid="hpto-parent-container"],
-    [data-testid="hpto-native"],
-    [data-testid="hpto-image"],
-    [data-testid="signup-bar"],
-    [data-testid="upgrade-button"],
-    #leaderboard-ad-element,
-    #view-billboard-ad,
-    .main-leaderboardComponent-container,
-    .sponsor-container,
-    .main-topBar-UpgradeButton {
-      display: none !important;
-    }
-  `;
-
-  let sp;
-  try {
-    sp = typeof Spicetify !== "undefined" ? Spicetify : null;
-  } catch (_) {
-    sp = null;
-  }
-  if (!sp || !sp.Player || !sp.Platform || !sp.Menu?.Item) {
-    setTimeout(bootGaptex, 300);
+(function gaptexBootstrap(tries) {
+  'use strict';
+  if (!Number.isInteger(tries)) tries = 0;
+  const sp = globalThis.Spicetify;
+  // An extension is loaded by Spicetify, not injected through a separate app.
+  if (!sp?.Player || !sp?.Menu?.Item || !sp?.LocalStorage) {
+    if (tries < 100) setTimeout(() => gaptexBootstrap(tries + 1), 200);
+    else console.error('[Gaptex] Spicetify API was not ready.');
     return;
   }
-  if (sp.__gaptexLoaded) return;
-  sp.__gaptexLoaded = true;
+  if (sp.__gaptexInitialized) return;
+  sp.__gaptexInitialized = true;
 
-  const log = (...args) => console.info("[Gaptex]", ...args);
-  const warn = (...args) => console.warn("[Gaptex]", ...args);
-  let settings = readSettings();
-  let lastShuffleCommand = 0;
-  let shuffleBusy = false;
-  let adsBusy = false;
-  let lastAdWarn = false;
-  let lastAdAttempt = 0;
-  let lastSlotCheck = 0;
+  const KEY = 'gaptex:settings:v2';
+  const STYLE_ID = 'gaptex-ad-styles';
+  const DEFAULTS = { adblock: true, antiReshuffle: true, desiredShuffle: false };
+  const selectors = [
+    '[data-testid="home-ads-container"]', '[data-testid="home-ad-card"]',
+    '[data-testid="billboard-minimized"]', '[data-testid="billboard-image-link"]',
+    '[data-testid="leaderboard-ad"]', '[data-testid="html-hpto-container"]',
+    '[data-testid="hpto-parent-container"]', '[data-testid="hpto-native"]',
+    '[data-testid="signup-bar"]', '#leaderboard-ad-element',
+    '#view-billboard-ad', '.main-leaderboardComponent-container',
+    '.sponsor-container', '.main-topBar-UpgradeButton'
+  ];
+  const log = (...x) => console.info('[Gaptex]', ...x);
+  const warn = (...x) => console.warn('[Gaptex]', ...x);
+  let prefs = { ...DEFAULTS };
+  try {
+    const saved = JSON.parse(sp.LocalStorage.get(KEY) || '{}');
+    for (const key of Object.keys(DEFAULTS)) {
+      if (typeof saved[key] === 'boolean') prefs[key] = saved[key];
+    }
+  } catch (e) { warn('Saved settings were invalid; using defaults.'); }
+  function persist() {
+    try { sp.LocalStorage.set(KEY, JSON.stringify(prefs)); }
+    catch (e) { warn('Cannot save preferences:', e); }
+  }
+  function toast(msg) {
+    try { sp.showNotification?.(`Gaptex: ${msg}`); }
+    catch (e) { log(msg); }
+  }
 
-  function readSettings() {
-    try {
-      const text = sp.LocalStorage?.get(SETTINGS_KEY);
-      if (!text) return { ...DEFAULTS };
-      const raw = JSON.parse(text);
-      if (!raw || typeof raw !== "object") throw Error("Invalid settings");
-      return {
-        adblock: typeof raw.adblock === "boolean" ? raw.adblock : DEFAULTS.adblock,
-        antiReshuffle: typeof raw.antiReshuffle === "boolean" ? raw.antiReshuffle : DEFAULTS.antiReshuffle,
-        preferredShuffle: typeof raw.preferredShuffle === "boolean" ? raw.preferredShuffle : DEFAULTS.preferredShuffle,
-      };
-    } catch (_) {
-      return { ...DEFAULTS };
+  // This is best effort. Spotify may display server-side audio ads despite this.
+  function setAdCss() {
+    const doc = globalThis.document;
+    if (!doc?.head) return;
+    let style = doc.getElementById(STYLE_ID);
+    if (!prefs.adblock && style) { style.remove(); return; }
+    if (prefs.adblock && !style) {
+      style = doc.createElement('style');
+      style.id = STYLE_ID;
+      style.textContent = `${selectors.join(',\n')} { display: none !important; }`;
+      doc.head.appendChild(style);
     }
   }
-
-  function saveSettings() {
-    try {
-      sp.LocalStorage?.set(SETTINGS_KEY, JSON.stringify(settings));
-    } catch (error) {
-      warn("Unable to save settings:", error);
-    }
-  }
-
-  function notify(message) {
-    try { sp.showNotification?.(message); } catch (_) { log(message); }
-  }
-
-  function ensureAdStyles() {
-    if (!document?.head) return;
-    let style = document.getElementById(CSS_ID);
-    if (settings.adblock && !style) {
-      style = document.createElement("style");
-      style.id = CSS_ID;
-      style.textContent = AD_CSS;
-      document.head.appendChild(style);
-    } else if (!settings.adblock && style) {
-      style.remove();
-    }
-  }
-
-  async function disableAdManager(manager) {
-    if (!manager || typeof manager.disable !== "function") return false;
-    try { await manager.disable(); return true; }
-    catch (error) { warn("Ad manager disable failed:", error); return false; }
-  }
-
-  // Spotify's AdManagers are *internal*, version-dependent client APIs.
-  // Check each method before calling it, and do not fake a Premium subscription.
-  async function filterAds() {
-    if (!settings.adblock || adsBusy) return;
-    adsBusy = true;
-    try {
-      ensureAdStyles();
-      const managers = sp.Platform?.AdManagers;
-      if (!managers || Object.keys(managers).length === 0) {
-        if (!lastAdWarn) {
-          warn("Audio ad API unavailable: UI filtering remains active. This is not guaranteed to block audio ads.");
-          lastAdWarn = true;
-        }
-        return;
+  let adRunning = false;
+  let adWarningShown = false;
+  async function tryAdFilter() {
+    setAdCss();
+    if (!prefs.adblock || adRunning) return;
+    const managers = sp.Platform?.AdManagers;
+    if (!managers) {
+      if (!adWarningShown) {
+        adWarningShown = true;
+        warn('Audio AdManagers API unavailable. Only visible ad containers will be filtered.');
       }
-      lastAdWarn = false;
-      // Change only the ads eligibility hint, not the user's account tier.
-      // This native service is optional and may reject client overrides.
-      const productState = sp.Platform.UserAPI?._product_state ||
-        sp.Platform.UserAPI?._product_state_service ||
-        sp.Platform.ProductStateAPI?.productStateApi;
-      if (typeof productState?.putOverridesValues === "function") {
-        try { await productState.putOverridesValues({ pairs: { ads: "0" } }); }
-        catch (_) { /* No override support on this client/version. */ }
-      }
-      // Best-effort slot cleanup. Does not intercept network traffic or spoof
-      // a premium subscription. Guard all shapes because they change.
-      const now = Date.now();
-      if (now - lastSlotCheck > 60000) {
-        lastSlotCheck = now;
-        const connector = managers.audio?.inStreamApi?.adsCoreConnector;
-        if (typeof connector?.clearSlot === "function" && typeof sp.CosmosAsync?.get === "function") {
-          try {
-            const response = await sp.CosmosAsync.get("sp://ads/v1/slots");
-            const slots = Array.isArray(response) ? response : response?.adSlots || [];
-            for (const slot of slots) {
-              const id = slot?.slotId || slot?.slot_id;
-              if (id) await connector.clearSlot(id);
-            }
-          } catch (_) { /* The ad slots endpoint can be unavailable. */ }
+      return;
+    }
+    adRunning = true;
+    try {
+      const targets = [managers.audio, managers.billboard, managers.inStreamApi,
+        managers.sponsoredPlaylist, managers.embeddedAd?.embeddedAdManager,
+        managers.vto?.manager];
+      for (const manager of targets) {
+        if (typeof manager?.disable === 'function') {
+          try { await manager.disable(); } catch (e) { warn('Ad manager unavailable:', e); }
         }
       }
-      const targets = [
-        managers.audio,
-        managers.billboard,
-        managers.sponsoredPlaylist,
-        managers.inStreamApi,
-        managers.embeddedAd?.embeddedAdManager,
-        managers.vto?.manager,
-      ];
-      await Promise.all(targets.map(disableAdManager));
-      try {
-        if (typeof managers.leaderboard?.disableLeaderboard === "function") {
-          await managers.leaderboard.disableLeaderboard();
-        } else {
-          await disableAdManager(managers.leaderboard);
-        }
-      } catch (error) { warn("Leaderboard disable failed:", error); }
-      try {
-        if (managers.audio && "isNewAdsNpvEnabled" in managers.audio) {
-          managers.audio.isNewAdsNpvEnabled = false;
-        }
-        if (managers.vto && "isNewAdsNpvEnabled" in managers.vto) {
-          managers.vto.isNewAdsNpvEnabled = false;
-        }
-      } catch (_) { /* Read-only fields vary between versions. */ }
-    } finally {
-      adsBusy = false;
-    }
+      if (typeof managers.leaderboard?.disableLeaderboard === 'function') {
+        try { await managers.leaderboard.disableLeaderboard(); } catch (e) { warn('Leaderboard:', e); }
+      }
+    } finally { adRunning = false; }
   }
 
-  // Remember the user-selected mode and restore it when Spotify changes it.
-  // This locks the shuffle *switch*, not the sequence of a remote Spotify queue.
+  let pendingShuffle = false;
+  let lastSetAt = 0;
   async function enforceShuffle() {
-    if (!settings.antiReshuffle || shuffleBusy) return;
-    let observed;
-    try { observed = sp.Player.getShuffle?.(); }
-    catch (_) { return; }
-    if (typeof observed !== "boolean" || observed === settings.preferredShuffle) return;
+    if (!prefs.antiReshuffle || pendingShuffle || typeof sp.Player?.getShuffle !== 'function') return;
+    let current;
+    try { current = sp.Player.getShuffle(); } catch (e) { return; }
+    if (typeof current !== 'boolean' || current === prefs.desiredShuffle) return;
     const now = Date.now();
-    if (now - lastShuffleCommand < 1500) return;
-    lastShuffleCommand = now;
-    shuffleBusy = true;
+    if (now - lastSetAt < 1200) return;
+    pendingShuffle = true;
+    lastSetAt = now;
     try {
-      // The Spicetify wrapper is documented; a version-specific fallback is allowed.
-      if (typeof sp.Player.setShuffle === "function") {
-        await sp.Player.setShuffle(settings.preferredShuffle);
-      } else if (typeof sp.Platform?.PlayerAPI?.setShuffle === "function") {
-        await sp.Platform.PlayerAPI.setShuffle(settings.preferredShuffle);
-      } else {
-        warn("Shuffle control API unavailable.");
-      }
-    } catch (error) { warn("Cannot restore shuffle mode:", error); }
-    finally { shuffleBusy = false; }
+      if (typeof sp.Player.setShuffle === 'function') {
+        await sp.Player.setShuffle(prefs.desiredShuffle);
+      } else if (typeof sp.Platform?.PlayerAPI?.setShuffle === 'function') {
+        await sp.Platform.PlayerAPI.setShuffle(prefs.desiredShuffle);
+      } else warn('Shuffle setter unavailable on this Spotify build.');
+    } catch (e) { warn('Could not enforce shuffle:', e); }
+    finally { pendingShuffle = false; }
   }
 
-  function menu(label, initial, callback) {
-    const item = new sp.Menu.Item(label, initial, callback);
-    item.register();
-    return item;
-  }
-
-  const adMenu = menu("Gaptex · AdBlock", settings.adblock, () => {
-    settings.adblock = !settings.adblock;
-    saveSettings();
-    adMenu.setState(settings.adblock);
-    ensureAdStyles();
-    if (settings.adblock) void filterAds();
-    notify(settings.adblock ? "Gaptex AdBlock aktif (best effort)" : "Gaptex AdBlock nonaktif. Restart Spotify untuk pemulihan penuh.");
+  const adItem = new sp.Menu.Item('Gaptex - AdBlock (experimental)', prefs.adblock, () => {
+    prefs.adblock = !prefs.adblock; persist(); adItem.setState(prefs.adblock);
+    setAdCss();
+    if (prefs.adblock) void tryAdFilter();
+    toast(prefs.adblock ? 'AdBlock enabled (best effort)' : 'AdBlock disabled; restart Spotify to restore ad managers');
   });
-
-  const antiMenu = menu("Gaptex · Anti-Reshuffle", settings.antiReshuffle, () => {
-    settings.antiReshuffle = !settings.antiReshuffle;
-    saveSettings();
-    antiMenu.setState(settings.antiReshuffle);
-    if (settings.antiReshuffle) void enforceShuffle();
-    notify(settings.antiReshuffle ? "Gaptex mengunci mode shuffle pilihan." : "Gaptex tidak lagi mengunci shuffle.");
+  adItem.register();
+  const shuffleItem = new sp.Menu.Item('Gaptex - Anti-Reshuffle', prefs.antiReshuffle, () => {
+    prefs.antiReshuffle = !prefs.antiReshuffle; persist();
+    shuffleItem.setState(prefs.antiReshuffle);
+    if (prefs.antiReshuffle) void enforceShuffle();
+    toast(prefs.antiReshuffle ? 'Shuffle lock ON' : 'Shuffle lock OFF');
   });
-
-  const desiredMenu = menu("Gaptex · Shuffle yang dikunci: OFF", settings.preferredShuffle, () => {
-    settings.preferredShuffle = !settings.preferredShuffle;
-    saveSettings();
-    desiredMenu.setState(settings.preferredShuffle);
-    desiredMenu.setName(`Gaptex · Shuffle yang dikunci: ${settings.preferredShuffle ? "ON" : "OFF"}`);
-    if (settings.antiReshuffle) void enforceShuffle();
-    notify(`Gaptex: mode shuffle target ${settings.preferredShuffle ? "ON" : "OFF"}.`);
-  });
-  desiredMenu.setName(`Gaptex · Shuffle yang dikunci: ${settings.preferredShuffle ? "ON" : "OFF"}`);
-
-  saveSettings();
-  ensureAdStyles();
-  void filterAds();
-  void enforceShuffle();
-
-  // Events + a modest watchdog. No global fetch interception, no muting or
-  // skipping playback, no modification to other extensions or Spotify files.
-  sp.Player.addEventListener("songchange", () => {
+  shuffleItem.register();
+  const targetItem = new sp.Menu.Item(`Gaptex - Target shuffle ${prefs.desiredShuffle ? 'ON' : 'OFF'}`, prefs.desiredShuffle, () => {
+    prefs.desiredShuffle = !prefs.desiredShuffle; persist();
+    targetItem.setState(prefs.desiredShuffle);
+    targetItem.setName(`Gaptex - Target shuffle ${prefs.desiredShuffle ? 'ON' : 'OFF'}`);
     void enforceShuffle();
-    if (settings.adblock && Date.now() - lastAdAttempt > 7000) {
-      lastAdAttempt = Date.now();
-      void filterAds();
-    }
+    toast(`Shuffle target ${prefs.desiredShuffle ? 'ON' : 'OFF'}`);
   });
-  setInterval(() => {
-    if (settings.antiReshuffle) void enforceShuffle();
-  }, 3000);
-  setInterval(() => {
-    if (settings.adblock) void filterAds();
-  }, 15000);
+  targetItem.register();
 
-  log(`v${VERSION} loaded; adblock=${settings.adblock}; antiReshuffle=${settings.antiReshuffle}; preferredShuffle=${settings.preferredShuffle}`);
+  persist();
+  void tryAdFilter();
+  void enforceShuffle();
+  if (typeof sp.Player.addEventListener === 'function') {
+    sp.Player.addEventListener('songchange', () => { void enforceShuffle(); void tryAdFilter(); });
+  }
+  setInterval(() => { void enforceShuffle(); }, 3000);
+  setInterval(() => { void tryAdFilter(); }, 20000);
+  log('v0.3.0 loaded. Open your Spotify profile menu for Gaptex.');
 })();

@@ -1,21 +1,11 @@
 {
   "name": "gaptex",
-  "version": "0.1.6",
-  "private": false,
-  "description": "Gaptex Spotify Desktop extension: ad filtering and shuffle toggle lock",
-  "license": "MIT",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Gaptex Spicetify extension with Windows PowerShell installer",
   "scripts": {
-    "test": "node --test tests/*.test.cjs",
-    "check": "node --check gaptex.js"
+    "check": "node --check gaptex.js",
+    "test": "node --test tests/*.test.cjs"
   },
-  "engines": {
-    "node": ">=18"
-  },
-  "keywords": [
-    "gaptex",
-    "spotify",
-    "extension",
-    "adblock",
-    "shuffle"
-  ]
+  "license": "MIT"
 }

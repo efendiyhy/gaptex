@@ -1,68 +1,34 @@
 'use strict';
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const root = path.resolve(__dirname, '..');
-const core = fs.readFileSync(path.join(root, 'install.ps1'), 'utf8');
-const remote = fs.readFileSync(path.join(root, 'install-online.ps1'), 'utf8');
-const notice = fs.readFileSync(path.join(root, 'docs', 'THIRD_PARTY_NOTICES.md'), 'utf8');
-
-test('online installer downloads and calls the same core installer', () => {
-  assert.match(remote, /install\.ps1/);
-  assert.match(remote, /gaptex\.js/);
-  assert.match(remote, /& \$scriptPath/);
-  assert.match(remote, /THIRD_PARTY_NOTICES/);
+const test=require('node:test');const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const core=fs.readFileSync(path.join(root,'install.ps1'),'utf8');
+const online=fs.readFileSync(path.join(root,'install-online.ps1'),'utf8');
+test('online installer retrieves both source and core script',()=>{
+  assert.match(online,/foreach \(\$filename in @\('install.ps1', 'gaptex.js'\)\)/);
+  assert.match(online,/& \(Join-Path \$work 'install.ps1'\)/);
 });
-test('installer clears console then displays rainbow cat and giant brand', () => {
-  assert.match(core, /Clear-Host/);
-  assert.match(core, /CAT PROTOCOL : ONLINE/);
-  assert.match(core, /INSTRUMENTATION/);
-  assert.match(core, /foreach \(\$phrase in \$phrases\)/);
-  assert.match(core, /ForegroundColor/);
+test('installs real Spicetify official runtime and retains notices',()=>{
+  assert.match(core,/spicetify\/cli\/main\/install.ps1/);
+  assert.match(core,/Spicetify CLI resmi/);
+  assert.match(fs.readFileSync(path.join(root,'docs/THIRD_PARTY_NOTICES.md'),'utf8'),/LGPL-2.1/);
+  assert.ok(!fs.existsSync(path.join(root,'spicetify.exe')));
 });
-test('installer closes Spotify before patching', () => {
-  const stop = core.indexOf('Stop-GaptexSpotify\n    # The first CLI run');
-  const config = core.indexOf("@('config','extensions','gaptex.js')");
-  assert.ok(stop !== -1 && config !== -1 && stop < config);
+test('uses no destructive automatic reinstall or restore',()=>{
+  assert.doesNotMatch(core,/Invoke-Native[^\n]+@\('restore'/);
+  assert.doesNotMatch(core,/winget uninstall|Remove-Item.*Spotify/i);
+  assert.match(core,/cannot be backed up at this state/i);
 });
-test('install uses explicit backup logic, consent before restoring', () => {
-  assert.match(core, /@\('apply','--no-restart'\)/);
-  assert.match(core, /@\('backup','apply','--no-restart'\)/);
-  assert.match(core, /Request-GaptexRestore/);
-  assert.match(core, /@\('restore','backup','apply','--no-restart'\)/);
+test('does not clear extension list or clobber other extensions',()=>{
+  assert.match(core,/@\('config','extensions','gaptex.js'\)/);
+  assert.doesNotMatch(core,/config extensions ""|config extensions ''/);
 });
-test('Windows native commands collect stderr and stdout separately', () => {
-  assert.match(core, /RedirectStandardOutput/);
-  assert.match(core, /RedirectStandardError/);
-  assert.match(core, /ExitCode/);
-  assert.doesNotMatch(core, /\*>>/);
+test('logs errors and stops only Spotify processes for activation',()=>{
+  assert.match(core,/Stop-Process -Id \$p.Id -Force/);
+  assert.match(core,/StandardOutput\.ReadToEndAsync/);
+  assert.match(core,/ExitCode/);
 });
-test('project documents runtime and license, no third party binary bundled', () => {
-  assert.match(notice, /Spicetify CLI/);
-  assert.match(notice, /LGPL-2\.1/);
-  assert.ok(!fs.existsSync(path.join(root, 'spicetify.exe')));
-});
-
-
-
-
-
-
-
-
-
-test('installer detects unbackuppable Spotify and stops destructive retries', () => {
-  assert.match(core, /cannot be backed up at this state/i);
-  assert.match(core, /LastFailureCategory = 'spotify-dirty'/);
-  assert.match(core, /reinstall Spotify Desktop/i);
-});
-test('online installer downloads same local core', () => {
-  assert.match(remote, /'install.ps1','gaptex.js'/);
-  assert.match(remote, /& \$scriptPath/);
-});
-test('branding remains visible with clean console', () => {
-  assert.match(core, /Clear-Host/);
-  assert.match(core, /CAT PROTOCOL/);
-  assert.match(core, /INSTRUMENTATION/);
+test('previous backup failure is handled before retries',()=>{
+  assert.match(core,/if \(\$apply.Text -match '\(\?i\)cannot be backed up at this state/);
+  assert.match(core,/throw 'Spotify memerlukan instalasi ulang/);
 });

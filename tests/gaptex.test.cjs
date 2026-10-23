@@ -1,117 +1,68 @@
 'use strict';
-const { test } = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
-
-const CODE = fs.readFileSync(path.join(__dirname, '..', 'gaptex.js'), 'utf8');
-
-function makeFixture({ managersExist = true, stored = undefined } = {}) {
-  const storage = new Map();
-  if (stored) storage.set('gaptex:settings:v1', JSON.stringify(stored));
-  const menus = [];
-  const listeners = new Map();
-  const intervals = [];
-  const node = { id: 'gaptex-ad-style', textContent: '', remove() { elements.delete(this.id); } };
-  const elements = new Map();
-  const calls = { disable: 0, shuffle: [], notifications: [] };
+const src = fs.readFileSync(require('node:path').join(__dirname,'..','gaptex.js'),'utf8');
+function rig(initial = {}) {
+  const settings = new Map();
+  if (Object.keys(initial).length) settings.set('gaptex:settings:v2', JSON.stringify(initial));
+  const items = [];
+  const events = new Map();
+  const timers = [];
   let shuffle = true;
+  const calls = [];
+  const elements = new Map();
+  const head = { appendChild(el) { elements.set(el.id,el); } };
   class MenuItem {
-    constructor(name, enabled, callback) { this.name = name; this.enabled = enabled; this.callback = callback; }
-    register() { menus.push(this); }
-    setState(value) { this.enabled = value; }
-    setName(value) { this.name = value; }
-    click() { this.callback(this); }
+    constructor(name, state, cb) { this.name=name; this.isEnabled=state; this.cb=cb; items.push(this); }
+    register() { this.registered=true; }
+    setName(s) { this.name=s; }
+    setState(s) { this.isEnabled=s; }
+    click() { this.cb(); }
   }
-  const manager = { disable: async () => { calls.disable += 1; } };
-  const platform = {
-    ...(managersExist ? { AdManagers: { audio: manager, billboard: manager } } : {}),
+  const sp = {
+    Menu:{ Item:MenuItem },
+    LocalStorage:{ get:k=>settings.get(k), set:(k,v)=>settings.set(k,v) },
+    Player:{ getShuffle:()=>shuffle, setShuffle:b=>{calls.push(b); shuffle=b;},
+      addEventListener:(n,cb)=>events.set(n,cb) },
+    Platform:{AdManagers:{audio:{disable:()=>{calls.push('disable-ad');}}}},
+    showNotification:()=>{}
   };
-  const Spicetify = {
-    Platform: platform,
-    Player: {
-      getShuffle() { return shuffle; },
-      async setShuffle(flag) { calls.shuffle.push(flag); shuffle = flag; },
-      addEventListener(name, callback) { listeners.set(name, callback); },
-    },
-    LocalStorage: {
-      get(key) { return storage.get(key); },
-      set(key, value) { storage.set(key, value); },
-    },
-    Menu: { Item: MenuItem },
-    showNotification(msg) { calls.notifications.push(msg); },
-  };
-  const sandbox = {
-    Spicetify,
-    setTimeout() { throw Error('Unexpected retry'); },
-    setInterval(callback, delay) { intervals.push({ callback, delay }); },
-    document: {
-      head: { appendChild(el) { elements.set(el.id, el); } },
-      getElementById(id) { return elements.get(id) || null; },
-      createElement(type) { assert.equal(type, 'style'); return { ...node }; },
-    },
-    console: { info() {}, warn() {} },
-  };
-  vm.runInNewContext(CODE, sandbox, { filename: 'gaptex.js' });
-  return { Spicetify, menus, calls, storage, elements, listeners, intervals,
-    get shuffle() { return shuffle; },
-    set shuffle(value) { shuffle = value; } };
+  const ctx={Spicetify:sp, console:{info(){},warn(){},error(){}},
+    Date:{ now: () => Date.now() }, setTimeout:()=>{},
+    setInterval:fn=>{timers.push(fn);}, document:{head, getElementById:id=>elements.get(id),
+    createElement:()=>({remove(){elements.delete(this.id);}})} };
+  ctx.globalThis=ctx;
+  vm.runInNewContext(src,ctx,{filename:'gaptex.js'});
+  return {sp,items,events,timers,calls,settings,elements,setShuffle:b=>shuffle=b,getShuffle:()=>shuffle};
 }
-
-test('initialization creates exactly three profile toggles and ad CSS', async () => {
-  const app = makeFixture();
-  assert.equal(app.menus.length, 3);
-  assert.equal(app.menus[0].name, 'Gaptex · AdBlock');
-  assert.equal(app.menus[1].name, 'Gaptex · Anti-Reshuffle');
-  assert.equal(app.menus[2].name, 'Gaptex · Shuffle yang dikunci: OFF');
-  assert.equal(app.elements.has('gaptex-ad-style'), true);
-  assert.equal(app.intervals.length, 2);
-  await new Promise(setImmediate);
-  assert.ok(app.calls.disable >= 2);
-  assert.deepEqual(app.calls.shuffle, [false]);
+test('registers three items in Spotify profile menu',()=>{
+  const r=rig(); assert.equal(r.items.length,3);
+  assert.ok(r.items.every(i=>i.registered));
+  assert.ok(r.items.some(i=>i.name.includes('Anti-Reshuffle')));
 });
-
-test('turning AdBlock off removes CSS and retains shuffle settings', () => {
-  const app = makeFixture();
-  app.menus[0].click();
-  assert.equal(app.elements.size, 0);
-  const settings = JSON.parse(app.storage.get('gaptex:settings:v1'));
-  assert.equal(settings.adblock, false);
-  assert.equal(settings.antiReshuffle, true);
+test('enforces default shuffle OFF', async()=>{
+  const r=rig(); await Promise.resolve();
+  assert.ok(r.calls.includes(false));
 });
-
-test('shuffle state can be locked ON when desired', async () => {
-  const app = makeFixture({ stored: { preferredShuffle: false, antiReshuffle: false, adblock: false } });
-  app.menus[2].click(); // save desired ON
-  app.menus[1].click(); // enable antiReshuffle
-  await new Promise(setImmediate);
-  assert.equal(app.menus[2].name, 'Gaptex · Shuffle yang dikunci: ON');
-  assert.equal(app.menus[1].enabled, true);
-  assert.equal(app.shuffle, true);
-  assert.equal(app.calls.shuffle.length, 0);
+test('allows target shuffle ON and saves choice', async()=>{
+  const r=rig(); r.items[2].click();
+  const prefs=JSON.parse(r.settings.get('gaptex:settings:v2'));
+  assert.equal(prefs.desiredShuffle,true);
+  assert.match(r.items[2].name,/ ON$/);
 });
-
-test('songchange restores locked shuffle setting after external changes', async () => {
-  const app = makeFixture({ stored: { antiReshuffle: true, preferredShuffle: true, adblock: false } });
-  app.shuffle = false;
-  app.listeners.get('songchange')();
-  await new Promise(setImmediate);
-  assert.equal(app.shuffle, true);
-  assert.deepEqual(app.calls.shuffle, [true]);
+test('disabling anti-reshuffle prevents automatic changes',()=>{
+  const r=rig(); r.items[1].click();
+  r.calls.length=0; r.setShuffle(true); r.timers[0]();
+  assert.ok(!r.calls.includes(false));
 });
-
-test('AdBlock degrades gracefully when ad manager API is not available', () => {
-  const app = makeFixture({ managersExist: false });
-  assert.equal(app.menus.length, 3);
-  assert.equal(app.elements.size, 1);
+test('adds removable CSS for UI filtering',()=>{
+  const r=rig(); assert.ok(r.elements.has('gaptex-ad-styles'));
+  r.items[0].click(); assert.ok(!r.elements.has('gaptex-ad-styles'));
 });
-
-test('startup is idempotent', () => {
-  const app = makeFixture();
-  // second load must not re-register menus or timers
-  const menusBefore = app.menus.length;
-  const context = { Spicetify: app.Spicetify, setInterval() { throw Error('Reinitialized'); }, setTimeout() {}, document: {}, console };
-  vm.runInNewContext(CODE, context, { filename: 'gaptex.js' });
-  assert.equal(app.menus.length, menusBefore);
+test('uses documented Spicetify wrapper rather than premium spoofing',()=>{
+  assert.match(src, /new sp.Menu.Item/);
+  assert.match(src, /sp.Player.setShuffle/);
+  assert.doesNotMatch(src,/putOverridesValues|catalogue.*premium/);
 });

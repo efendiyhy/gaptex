@@ -1,37 +1,35 @@
-# Gaptex – diagnosis instalasi
+# Pemecahan masalah Gaptex
 
-## Lokasi log
+## Pesan `cannot be backed up at this state`
 
-`%LOCALAPPDATA%\Gaptex\logs\install.log`
+Penyebab: file Spotify telah dimodifikasi / berada pada keadaan yang tidak dapat dibackup CLI. Menutup Spotify saja tidak memperbaikinya. Instal ulang **aplikasi Spotify Desktop**, buka dan login selama sekitar 60 detik, tutup, lalu jalankan ulang installer. Jangan hapus akun/playlist; unduhan offline dapat perlu diunduh lagi.
+
+## Pesan `Please restore first then backup`
+
+Artinya ada backup lama. Untuk pemeriksaan manual di PowerShell:
 
 ```powershell
-Get-Content "$env:LOCALAPPDATA\Gaptex\logs\install.log" -Tail 60
+spicetify restore
+spicetify backup apply
 ```
 
-## Prinsip pemulihan
+**Peringatan:** `restore` menghapus modifikasi Spicetify yang sedang aktif. Konfigurasi tema/ekstensi biasanya masih tersimpan, tetapi tindakan ini bisa memengaruhi ekstensi lainnya. Installer Gaptex tidak melakukannya otomatis.
 
-- Installer menutup proses Spotify sebelum mengubah file aplikasinya.
-- Instalasi baru mempersiapkan backup, sedangkan instalasi yang sudah ada mencoba `apply` dahulu.
-- Backup yang tidak sinkron ditangani hanya setelah konfirmasi eksplisit. Memulihkan backup dapat mengganti modifikasi Spotify dari pihak lain.
-- Jika versi Spotify tidak didukung, installer tidak mengklaim sukses atau melakukan pemulihan berulang.
-- Jangan hapus folder konfigurasi dan backup secara manual sebagai langkah pertama.
+## `Spicetify CLI belum ditemukan`
 
-## Makna pesan
+Buka PowerShell baru lalu jalankan `spicetify -v`. Jika tidak terdeteksi, lihat instalasi Spicetify resmi: https://spicetify.app/docs/getting-started .
 
-| Pesan | Tindakan |
-|---|---|
-| `Spotify version mismatch` | Periksa dukungan versi Spotify dan pembaruan runtime; tidak selalu dapat diperbaiki otomatis. |
-| `You haven't backed up` (tanpa error kondisi instalasi) | Installer mencoba menyiapkan backup awal. |
-| `Spotify cannot be backed up at this state` / `Failed to backup app files` | Instalasi Spotify perlu dipulihkan dengan reinstall resmi; jangan ulang `backup apply` terus. Buka Spotify dan login 60 detik setelah reinstall. |
-| `Preprocessed Spotify data is outdated` | Installer meminta izin pemulihan backup dan apply ulang. |
-| `After clearing backup, Spotify cannot be backed up again` | Backup baru tidak dapat dibuat sebelum memulihkan Spotify ke kondisi semula. |
-| `Cannot find prefs` | Pastikan Spotify Desktop pernah dibuka dan Anda sudah login. Periksa jenis instalasi Spotify. |
-| `Access denied` | Periksa izin direktori Spotify. Jangan langsung menjalankan semua perintah sebagai administrator tanpa diagnosis. |
+## Gaptex tidak muncul di menu profil
 
-Panduan unduhan Spotify resmi: <https://www.spotify.com/download/windows/>.
+Jalankan:
 
-CLI dokumentasi: <https://spicetify.app/docs/cli/commands> dan <https://spicetify.app/docs/faq>.
+```powershell
+spicetify config
+spicetify apply
+```
 
-## Mengirim laporan bug
+Pastikan daftar `extensions` mengandung `gaptex.js`. Periksa log DevTools (`Ctrl + Shift + I`) untuk `[Gaptex]`.
 
-Sertakan versi Windows, versi Spotify, status apakah Spotify diinstal dari Microsoft Store atau installer web, versi komponen integrasi, dan 30–60 baris terakhir log **setelah disensor**. Jangan kirim password, token, atau path pribadi tanpa disensor.
+## Log berisi informasi sensitif
+
+Sebelum membagikan log, hapus token, nama komputer, direktori pribadi, dan informasi akun.
